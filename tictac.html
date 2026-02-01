@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase 多功能連線棋盤</title>
+    <style>
+        body { font-family: 'PingFang TC', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        .hidden { display: none; }
+        .menu-btn { width: 100%; padding: 15px; margin: 10px 0; font-size: 18px; cursor: pointer; border: none; border-radius: 8px; background: #007bff; color: white; }
+        .menu-btn:hover { background: #0056b3; }
+        .room-item { border: 1px solid #ddd; padding: 10px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; background: #fafafa; }
+        input { width: 60px; padding: 5px; text-align: center; }
+        
+        /* 動態棋盤 */
+        #gameBoard { display: grid; gap: 5px; margin: 20px auto; background: #ccc; padding: 5px; border-radius: 5px; }
+        .cell { background: white; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
+        .cell:hover { background: #f0f0f0; }
+        #status { font-weight: bold; color: #d9534f; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+<div id="mainMenu" class="container">
+    <h1>遊戲大廳</h1>
+    <button class="menu-btn" onclick="showSection('gameModeSelect')">圈圈叉叉</button>
+    <button class="menu-btn" style="background:#6c757d">四連棋 (開發中)</button>
+</div>
+
+<div id="gameModeSelect" class="container hidden">
+    <h2>圈圈叉叉</h2>
+    <button class="menu-btn" onclick="showSection('createRoomSection')">創立新房間</button>
+    <button class="menu-btn" onclick="listRooms()">加入現有房間</button>
+    <button onclick="showSection('mainMenu')">回主選單</button>
+</div>
+
+<div id="createRoomSection" class="container hidden">
+    <h3>遊戲設定</h3>
+    <p>棋盤大小 (N): <input type="number" id="boardN" value="3" min="3" max="10"> (NxN)</p>
+    <p>連線目標 (K): <input type="number" id="goalK" value="3" min="3"></p>
+    <p>玩家人數 (1-8): <input type="number" id="maxP" value="2" min="1" max="8"></p>
+    <button class="menu-btn" onclick="createRoom()">確認創立並進入</button>
+    <button onclick="showSection('gameModeSelect')">返回</button>
+</div>
+
+<div id="roomListSection" class="container hidden">
+    <h3>房間列表</h3>
+    <div id="roomsContainer">正在搜尋房間...</div>
+    <button onclick="showSection('gameModeSelect')">返回</button>
+</div>
+
+<div id="gameArea" class="container hidden">
+    <h3 id="roomDisplayID"></h3>
+    <div id="status">載入中...</div>
+    <div id="gameBoard"></div>
+    <button onclick="resetGame()">重新開始</button>
+    <button onclick="location.reload()">離開房間</button>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue, push, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+    // 這裡已經填入你提供的金鑰
+    const firebaseConfig = {
+        apiKey: "AIzaSyC7PZLTTNf17cfp9gCHudWiWX8SYPSCdDI",
+        authDomain: "onlineeasyraygame.firebaseapp.com",
+        databaseURL: "https://onlineeasyraygame-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "onlineeasyraygame",
+        storageBucket: "onlineeasyraygame.firebasestorage.app",
+        messagingSenderId: "622138442346",
+        appId: "1:622138442346:web:375980b448fb9b3f428013"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    let currentRoomId = null;
+
+    // --- 切換畫面 ---
+    window.showSection = (id) => {
+        document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+    };
+
+    // --- 創立房間 ---
+    window.createRoom = () => {
+        const n = parseInt(document.getElementById('boardN').value);
+        const k = parseInt(document.getElementById('goalK').value);
+        const max = parseInt(document.getElementById('maxP').value);
+        
+        const roomRef = push(ref(db, 'rooms')); // 產生隨機房間ID
+        const roomId = roomRef.key;
+
+        set(roomRef, {
+            n, k, max,
+            board: Array(n*n).fill(""),
+            turn: 0,
+            symbols: ["O", "X", "△", "□", "★", "◇", "◆", "▲"]
+        }).then(() => enterRoom(roomId));
+    };
+
+    // --- 列出房間 ---
+    window.listRooms = () => {
+        showSection('roomListSection');
+        onValue(ref(db, 'rooms'), (snapshot) => {
+            const container = document.getElementById('roomsContainer');
+            container.innerHTML = "";
+            const rooms = snapshot.val();
+            if (!rooms) { container.innerHTML = "目前沒人創房"; return; }
+            for (let id in rooms) {
+                const div = document.createElement('div');
+                div.className = 'room-item';
+                div.innerHTML = `<span>房間 ${id.substring(0,4)} (${rooms[id].n}x${rooms[id].n})</span> 
+                                 <button onclick="enterRoom('${id}')">進入</button>`;
+                container.appendChild(div);
+            }
+        });
+    };
+
+    // --- 進入房間並監聽 ---
+    window.enterRoom = (id) => {
+        currentRoomId = id;
+        showSection('gameArea');
+        document.getElementById('roomDisplayID').innerText = "房間編號: " + id.substring(0,4);
+        
+        onValue(ref(db, 'rooms/' + id), (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+            renderBoard(data);
+        });
+    };
+
+    function renderBoard(data) {
+        const boardDiv = document.getElementById('gameBoard');
+        boardDiv.style.gridTemplateColumns = `repeat(${data.n}, 1fr)`;
+        boardDiv.innerHTML = "";
+        
+        const currentSymbol = data.symbols[data.turn % data.max];
+        document.getElementById('status').innerText = `輪到玩家: ${currentSymbol}`;
+
+        data.board.forEach((cell, i) => {
+            const div = document.createElement('div');
+            div.className = 'cell';
+            div.innerText = cell;
+            div.onclick = () => {
+                if (data.board[i] !== "") return;
+                const newBoard = [...data.board];
+                newBoard[i] = currentSymbol;
+                update(ref(db, 'rooms/' + currentRoomId), {
+                    board: newBoard,
+                    turn: data.turn + 1
+                });
+            };
+            boardDiv.appendChild(div);
+        });
+    }
+
+    window.resetGame = () => {
+        onValue(ref(db, 'rooms/' + currentRoomId), (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+            update(ref(db, 'rooms/' + currentRoomId), {
+                board: Array(data.n * data.n).fill(""),
+                turn: 0
+            });
+        }, { onlyOnce: true });
+    };
+
+</script>
+</body>
+</html>
