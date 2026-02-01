@@ -3,16 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase 多功能連線棋盤</title>
+    <title>Firebase 多功能連線棋盤 (加強版)</title>
     <style>
         body { font-family: 'PingFang TC', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
         .hidden { display: none; }
-        .menu-btn { width: 100%; padding: 15px; margin: 10px 0; font-size: 18px; cursor: pointer; border: none; border-radius: 8px; background: #007bff; color: white; }
-        .menu-btn:hover { background: #0056b3; }
-        .room-item { border: 1px solid #ddd; padding: 10px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; background: #fafafa; }
-        input { width: 60px; padding: 5px; text-align: center; }
         
+        /* 按鈕樣式 */
+        .menu-btn { width: 100%; padding: 15px; margin: 10px 0; font-size: 18px; cursor: pointer; border: none; border-radius: 8px; background: #007bff; color: white; transition: 0.2s; }
+        .menu-btn:hover { background: #0056b3; }
+        .btn-red { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;}
+        .btn-green { background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        
+        /* 列表樣式 */
+        .room-item { border: 1px solid #ddd; padding: 12px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; background: #fafafa; }
+        .room-info { text-align: left; display: flex; flex-direction: column; }
+        .room-name { font-weight: bold; font-size: 1.1em; }
+        .room-meta { font-size: 0.85em; color: #666; }
+        
+        /* 輸入框樣式 */
+        input { padding: 8px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
+        .input-group { margin: 10px 0; text-align: left; }
+        .input-group label { display: inline-block; width: 100px; font-weight: bold;}
+        .input-group input { width: calc(100% - 120px); box-sizing: border-box;}
+
         /* 動態棋盤 */
         #gameBoard { display: grid; gap: 5px; margin: 20px auto; background: #ccc; padding: 5px; border-radius: 5px; }
         .cell { background: white; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
@@ -36,10 +50,30 @@
 </div>
 
 <div id="createRoomSection" class="container hidden">
-    <h3>遊戲設定</h3>
-    <p>棋盤大小 (N): <input type="number" id="boardN" value="3" min="3" max="10"> (NxN)</p>
-    <p>連線目標 (K): <input type="number" id="goalK" value="3" min="3"></p>
-    <p>玩家人數 (1-8): <input type="number" id="maxP" value="2" min="1" max="8"></p>
+    <h3>創立房間設定</h3>
+    
+    <div class="input-group">
+        <label>房間名稱:</label>
+        <input type="text" id="roomName" placeholder="未命名房間">
+    </div>
+    <div class="input-group">
+        <label>設定密碼:</label>
+        <input type="password" id="roomPass" placeholder="留空則公開">
+    </div>
+    <hr>
+    <div class="input-group">
+        <label>棋盤大小 (N):</label>
+        <input type="number" id="boardN" value="3" min="3" max="10">
+    </div>
+    <div class="input-group">
+        <label>連線目標 (K):</label>
+        <input type="number" id="goalK" value="3" min="3">
+    </div>
+    <div class="input-group">
+        <label>人數 (1-8):</label>
+        <input type="number" id="maxP" value="2" min="1" max="8">
+    </div>
+
     <button class="menu-btn" onclick="createRoom()">確認創立並進入</button>
     <button onclick="showSection('gameModeSelect')">返回</button>
 </div>
@@ -51,7 +85,7 @@
 </div>
 
 <div id="gameArea" class="container hidden">
-    <h3 id="roomDisplayID"></h3>
+    <h3 id="roomDisplayInfo"></h3>
     <div id="status">載入中...</div>
     <div id="gameBoard"></div>
     <button onclick="resetGame()">重新開始</button>
@@ -59,10 +93,10 @@
 </div>
 
 <script type="module">
+    // 加入 get 和 remove 模組
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, push, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+    import { getDatabase, ref, set, onValue, push, update, get, remove } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
-    // 這裡已經填入你提供的金鑰
     const firebaseConfig = {
         apiKey: "AIzaSyC7PZLTTNf17cfp9gCHudWiWX8SYPSCdDI",
         authDomain: "onlineeasyraygame.firebaseapp.com",
@@ -85,14 +119,21 @@
 
     // --- 創立房間 ---
     window.createRoom = () => {
+        const nameInput = document.getElementById('roomName').value.trim();
+        const passInput = document.getElementById('roomPass').value.trim();
         const n = parseInt(document.getElementById('boardN').value);
         const k = parseInt(document.getElementById('goalK').value);
         const max = parseInt(document.getElementById('maxP').value);
         
-        const roomRef = push(ref(db, 'rooms')); // 產生隨機房間ID
+        // 如果沒填名字，給預設值
+        const roomName = nameInput || `房間 ${Math.floor(Math.random()*1000)}`;
+
+        const roomRef = push(ref(db, 'rooms')); 
         const roomId = roomRef.key;
 
         set(roomRef, {
+            name: roomName,
+            password: passInput, // 儲存密碼 (注意：前端明文儲存僅供簡易娛樂使用)
             n, k, max,
             board: Array(n*n).fill(""),
             turn: 0,
@@ -107,26 +148,77 @@
             const container = document.getElementById('roomsContainer');
             container.innerHTML = "";
             const rooms = snapshot.val();
-            if (!rooms) { container.innerHTML = "目前沒人創房"; return; }
+            
+            if (!rooms) { container.innerHTML = "<p>目前沒人創房，快去開一間！</p>"; return; }
+            
             for (let id in rooms) {
+                const r = rooms[id];
+                const isLocked = r.password ? "🔒" : "👐"; // 鎖頭圖示
+                
                 const div = document.createElement('div');
                 div.className = 'room-item';
-                div.innerHTML = `<span>房間 ${id.substring(0,4)} (${rooms[id].n}x${rooms[id].n})</span> 
-                                 <button onclick="enterRoom('${id}')">進入</button>`;
+                div.innerHTML = `
+                    <div class="room-info">
+                        <span class="room-name">${r.name} ${isLocked}</span>
+                        <span class="room-meta">${r.n}x${r.n} | 目標:${r.k} | ID:${id.substring(0,4)}</span>
+                    </div>
+                    <div>
+                        <button class="btn-green" onclick="checkPasswordAndEnter('${id}')">進入</button>
+                        <button class="btn-red" onclick="deleteRoom('${id}')">刪除</button>
+                    </div>`;
                 container.appendChild(div);
             }
         });
+    };
+
+    // --- 檢查密碼邏輯 ---
+    window.checkPasswordAndEnter = (id) => {
+        // 先讀取一次該房間資料來檢查密碼
+        get(ref(db, 'rooms/' + id)).then((snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                if (data.password && data.password !== "") {
+                    // 有密碼，跳出輸入框
+                    const inputPass = prompt(`房間「${data.name}」需要密碼：`);
+                    if (inputPass === data.password) {
+                        enterRoom(id);
+                    } else {
+                        alert("密碼錯誤！");
+                    }
+                } else {
+                    // 沒密碼，直接進
+                    enterRoom(id);
+                }
+            } else {
+                alert("房間已不存在");
+            }
+        });
+    };
+
+    // --- 刪除房間 ---
+    window.deleteRoom = (id) => {
+        if(confirm("確定要刪除這個房間嗎？")) {
+            remove(ref(db, 'rooms/' + id))
+                .then(() => alert("房間已刪除"))
+                .catch((error) => alert("刪除失敗: " + error.message));
+        }
     };
 
     // --- 進入房間並監聽 ---
     window.enterRoom = (id) => {
         currentRoomId = id;
         showSection('gameArea');
-        document.getElementById('roomDisplayID').innerText = "房間編號: " + id.substring(0,4);
         
         onValue(ref(db, 'rooms/' + id), (snapshot) => {
             const data = snapshot.val();
-            if (!data) return;
+            // 如果房間被刪除， data 會變成 null
+            if (!data) {
+                alert("房間已被刪除或不存在！");
+                showSection('roomListSection'); // 強制踢回列表
+                return;
+            }
+
+            document.getElementById('roomDisplayInfo').innerText = `${data.name} (ID: ${id.substring(0,4)})`;
             renderBoard(data);
         });
     };
@@ -166,6 +258,10 @@
             });
         }, { onlyOnce: true });
     };
+
+    // 把這些 function 掛載到 window 讓 HTML onclick 找得到
+    window.checkPasswordAndEnter = checkPasswordAndEnter;
+    window.deleteRoom = deleteRoom;
 
 </script>
 </body>
