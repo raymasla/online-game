@@ -28,6 +28,10 @@
         .lock-icon { font-size: 0.8em; margin-left: 5px; color: #d9534f; }
         .room-meta { font-size: 0.75em; color: #888; margin-top: 2px; }
         
+        /* 首頁統計資訊 (新增) */
+        .stats-bar { background: #e9ecef; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9em; color: #555; display: flex; justify-content: space-around; }
+        .stat-item b { color: #007bff; font-size: 1.2em; }
+
         /* 輸入框 */
         input { padding: 8px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
         .input-group { margin: 10px 0; text-align: left; display: flex; align-items: center; justify-content: space-between; }
@@ -55,13 +59,11 @@
 
         /* --- 四連棋樣式 --- */
         :root { 
-            /* 注意：這裡的 cell size 之後會用 JS 動態覆蓋，或者用 Grid 自動調整 */
             --c4-cell-size: 40px; 
             --p1-color: #ff4d4d;
             --p2-color: #ffd93d;
         }
         #c4-game-wrapper { display: flex; flex-direction: column; align-items: center; background-color: rgba(44, 62, 80, 0.9); padding: 15px; border-radius: 10px; transition: 0.5s; max-width: 100%; overflow-x: auto; }
-        /* 這裡的 columns 和 rows 會由 JS 動態注入 inline style */
         .c4-board { display: grid; gap: 5px; padding: 10px; background: #3498db; border-radius: 10px; margin: 0 auto; }
         .c4-cell { width: var(--c4-cell-size); height: var(--c4-cell-size); background-color: #1a252f; border-radius: 50%; position: relative; }
         .piece { width: 100%; height: 100%; border-radius: 50%; animation: dropAnim 0.5s forwards; box-shadow: inset -3px -3px 5px rgba(0,0,0,0.3); }
@@ -81,6 +83,8 @@
 
         /* --- 勝利特效 & 巨大按鈕 --- */
         #win-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white; }
+        /* 這裡的顏色會由 JS 動態覆寫 */
+        #win-message { font-size: 3em; margin-bottom: 10px; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
         .big-reset-btn { padding: 20px 40px; font-size: 24px; font-weight: bold; background: #28a745; color: white; border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 0 20px rgba(40, 167, 69, 0.6); transition: 0.3s; margin-top: 20px;}
         .big-reset-btn:hover { transform: scale(1.1); }
     </style>
@@ -89,6 +93,11 @@
 
 <div id="mainMenu" class="container">
     <h1>自定義線上遊戲</h1>
+    <div class="stats-bar">
+        <div class="stat-item">大廳閒置: <b id="lobbyCount">0</b></div>
+        <div class="stat-item">遊戲中: <b id="inGameCount">0</b></div>
+    </div>
+
     <div id="allRoomsContainer">搜尋中...</div>
     <hr>
     <button class="menu-btn" onclick="showCreateRoom('ttt')">創立 棋盤連線 (圈圈叉叉/五子棋)</button>
@@ -183,22 +192,48 @@
     
     let myName = "玩家" + Math.floor(Math.random() * 100);
 
+    // --- 新增：全站線上人數統計 (Presence System) ---
+    // 進入頁面時，在 online 節點註冊
+    const onlineRef = push(ref(db, 'online'));
+    onDisconnect(onlineRef).remove();
+    set(onlineRef, true);
+
+    // 監聽總在線人數
+    let totalOnlineCount = 0;
+    onValue(ref(db, 'online'), (snapshot) => {
+        const val = snapshot.val();
+        totalOnlineCount = val ? Object.keys(val).length : 0;
+        updateStatsUI();
+    });
+
     // --- 初始化：顯示所有房間 ---
+    let totalInGameCount = 0;
+
     function initLobby() {
         onValue(ref(db, 'rooms'), (snapshot) => {
             const container = document.getElementById('allRoomsContainer');
             container.innerHTML = "";
             const rooms = snapshot.val();
-            if (!rooms) { container.innerHTML = "<p>目前沒有房間，來開一個吧！</p>"; return; }
+            
+            // 重置遊戲中人數
+            totalInGameCount = 0;
+
+            if (!rooms) { 
+                container.innerHTML = "<p>目前沒有房間，來開一個吧！</p>"; 
+                updateStatsUI();
+                return; 
+            }
             
             Object.entries(rooms).reverse().forEach(([id, r]) => {
                 const userCount = r.users ? Object.keys(r.users).length : 0;
+                totalInGameCount += userCount; // 累加遊戲中人數
+
                 const typeName = r.type === 'c4' ? '🔵重力四連' : '❌棋盤連線';
                 const hasPass = r.password && r.password !== "";
                 const lockIcon = hasPass ? '<span class="lock-icon">🔒</span>' : '';
                 const passwordArg = hasPass ? r.password : ""; 
                 
-                // 顯示棋盤大小資訊 (相容舊版資料)
+                // 顯示棋盤大小資訊
                 const rows = r.rows || (r.type === 'c4' ? 6 : 3);
                 const cols = r.cols || (r.type === 'c4' ? 7 : 3);
                 const win = r.winCondition || (r.type === 'c4' ? 4 : 3);
@@ -216,9 +251,19 @@
                     </div>`;
                 container.appendChild(div);
             });
+            updateStatsUI();
         });
     }
     initLobby();
+
+    // 更新首頁的統計數字
+    function updateStatsUI() {
+        // 大廳人數 = 總連線人數 - 遊戲中人數 (若負數則歸零，防止非同步時間差)
+        const lobbyCount = Math.max(0, totalOnlineCount - totalInGameCount);
+        
+        document.getElementById('inGameCount').innerText = totalInGameCount;
+        document.getElementById('lobbyCount').innerText = lobbyCount;
+    }
 
     window.attemptJoin = (id, correctPass) => {
         if (correctPass && correctPass !== "undefined" && correctPass !== "") {
@@ -247,7 +292,7 @@
         }
     };
 
-    // --- 房間管理 (修改後支援自定義大小) ---
+    // --- 房間管理 ---
     window.showCreateRoom = (type) => {
         selectedGameType = type;
         const title = type === 'c4' ? '創立 四連棋 (重力落下)' : '創立 棋盤連線 (圈圈叉叉)';
@@ -271,12 +316,10 @@
         const name = document.getElementById('roomName').value || "好玩房間";
         const pass = document.getElementById('roomPass').value;
         
-        // 讀取自定義大小
         let rows = parseInt(document.getElementById('inputRows').value) || 3;
         let cols = parseInt(document.getElementById('inputCols').value) || 3;
         let win = parseInt(document.getElementById('inputWin').value) || 3;
 
-        // 簡單驗證防呆
         if(rows < 3) rows = 3; if(cols < 3) cols = 3; if(win < 3) win = 3;
         if(win > Math.max(rows, cols)) { alert("連線數不能大於棋盤長寬！"); return; }
         
@@ -288,7 +331,6 @@
         set(roomRef, {
             type: selectedGameType, name, password: pass,
             board: initBoard, turn: 0, history: [initBoard],
-            // 儲存大小設定
             rows: rows, cols: cols, winCondition: win
         }).then(() => enterRoom(roomRef.key));
     };
@@ -338,18 +380,19 @@
         }
     };
 
-    // --- 遊戲邏輯 (動態渲染) ---
+    // --- 遊戲邏輯 ---
     function renderGame(data) {
         document.getElementById('roomDisplayInfo').innerText = data.name;
         
-        // 取得動態大小 (如果舊房間沒有資料，使用預設值)
         const rows = data.rows || (data.type === 'c4' ? 6 : 3);
         const cols = data.cols || (data.type === 'c4' ? 7 : 3);
         const win = data.winCondition || (data.type === 'c4' ? 4 : 3);
-
-        document.getElementById('gameMetaInfo').innerText = `規格: ${rows}x${cols} | 目標: ${win}連線`;
-
+        
+        // --- 更新：顯示房間內人數 ---
         const userList = data.users ? Object.values(data.users) : [];
+        const userCount = userList.length;
+        document.getElementById('gameMetaInfo').innerText = `規格: ${rows}x${cols} | 目標: ${win}連線 | 當前人數: ${userCount}人`;
+
         const p1Name = userList[0] ? userList[0].name : "玩家 1";
         const p2Name = userList[1] ? userList[1].name : "玩家 2";
         const currentPlayerName = (data.turn % 2 === 0) ? p1Name : p2Name;
@@ -359,10 +402,8 @@
             document.getElementById('c4-game-wrapper').classList.remove('hidden');
             const boardDiv = document.getElementById('c4-board');
             
-            // 動態設定 Grid
             boardDiv.style.gridTemplateColumns = `repeat(${cols}, var(--c4-cell-size))`;
             
-            // 根據格子數量動態調整大小，避免太擠
             const size = cols > 10 ? '30px' : (cols > 7 ? '35px' : '45px');
             document.documentElement.style.setProperty('--c4-cell-size', size);
 
@@ -371,7 +412,6 @@
                 const cell = document.createElement('div');
                 cell.className = 'c4-cell';
                 if(val > 0) cell.innerHTML = `<div class="piece p${val}"></div>`;
-                // 傳入 cols 以便計算點擊的行
                 cell.onclick = () => dropC4(i % cols, rows, cols);
                 boardDiv.appendChild(cell);
             });
@@ -381,7 +421,6 @@
             document.getElementById('ttt-board').classList.remove('hidden');
             const boardDiv = document.getElementById('ttt-board');
             
-            // 動態設定 Grid
             boardDiv.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
             
             boardDiv.innerHTML = "";
@@ -396,10 +435,8 @@
         }
     }
 
-    // 四連棋：重力落下邏輯 (修改支援任意高度)
     function dropC4(col, rows, cols) {
         const board = [...roomDataCache.board];
-        // 從最底層 row 開始往上找空位
         for (let r = rows - 1; r >= 0; r--) {
             const index = r * cols + col;
             if (board[index] === 0) {
@@ -451,35 +488,42 @@
     };
 
     function checkWinner(data) {
-        // 取得參數，若舊房間無資料則用預設
         const rows = data.rows || (data.type === 'c4' ? 6 : 3);
         const cols = data.cols || (data.type === 'c4' ? 7 : 3);
         const winTarget = data.winCondition || (data.type === 'c4' ? 4 : 3);
         const emptyVal = data.type === 'c4' ? 0 : "";
 
-        // 使用通用演算法
         const winner = checkWinGeneral(data.board, rows, cols, winTarget, emptyVal);
+        const msgEl = document.getElementById('win-message');
 
         if (winner) {
             const userList = data.users ? Object.values(data.users) : [];
             let winnerName = "";
             let winSymbol = "";
+            let winColor = "#ffffff"; // 預設白色
 
+            // --- 更新：讀取玩家自定義顏色並應用 ---
             if (winner === 'X' || winner === 1) {
                 winnerName = userList[0] ? userList[0].name : "玩家 1";
                 winSymbol = (data.type === 'ttt') ? '(X)' : '(🔴)';
+                if(data.type === 'c4') winColor = document.getElementById('p1ColorPicker').value;
             } else if (winner === 'O' || winner === 2) {
                 winnerName = userList[1] ? userList[1].name : "玩家 2";
                 winSymbol = (data.type === 'ttt') ? '(O)' : '(🟡)';
+                if(data.type === 'c4') winColor = document.getElementById('p2ColorPicker').value;
             }
 
-            document.getElementById('win-message').innerText = `🎉 恭喜 ${winnerName} ${winSymbol} 獲勝！ 🎉`;
+            msgEl.innerText = `🎉 恭喜 ${winnerName} ${winSymbol} 獲勝！ 🎉`;
+            
+            // 設定勝利文字顏色
+            msgEl.style.color = winColor;
+            
             document.getElementById('win-overlay').style.display = 'flex';
         } else {
-            // 平手檢測
             const isFull = data.board.every(cell => cell !== 0 && cell !== "");
             if (isFull) {
-                 document.getElementById('win-message').innerText = `🤝 平手！ 🤝`;
+                 msgEl.innerText = `🤝 平手！ 🤝`;
+                 msgEl.style.color = "white";
                  document.getElementById('win-overlay').style.display = 'flex';
             } else {
                 document.getElementById('win-overlay').style.display = 'none';
@@ -487,31 +531,23 @@
         }
     }
 
-    // --- 通用 N*M 棋盤 K 連線判定演算法 ---
     function checkWinGeneral(board, rows, cols, target, emptyVal) {
         const getCell = (r, c) => {
             if(r < 0 || r >= rows || c < 0 || c >= cols) return null;
             return board[r * cols + c];
         };
 
-        // 四個檢查方向：橫向、縱向、右下斜、左下斜
         const directions = [
-            [0, 1],  // 橫向 (Right)
-            [1, 0],  // 縱向 (Down)
-            [1, 1],  // 右下 (Diag Down-Right)
-            [1, -1]  // 左下 (Diag Down-Left)
+            [0, 1], [1, 0], [1, 1], [1, -1] 
         ];
 
         for(let r = 0; r < rows; r++) {
             for(let c = 0; c < cols; c++) {
                 const current = getCell(r, c);
-                // 跳過空格
                 if (current === emptyVal || current === null) continue;
 
-                // 對每個方向檢查
                 for (let [dr, dc] of directions) {
                     let count = 1;
-                    // 往該方向延伸檢查 target-1 格
                     for (let k = 1; k < target; k++) {
                         if (getCell(r + dr * k, c + dc * k) === current) {
                             count++;
