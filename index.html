@@ -556,7 +556,12 @@
         5. <b>出完牌</b>：3人以上時，安全上岸 (跳過回合)；若剩兩人時上家出完牌，下家必須強制抓謊。<br>
         6. 1/6 機率觸發實彈，死亡淘汰。<br>
         7. <b style="color:#facc15">多人模式(5人+)</b>: 牌庫自動擴充至 8組 A,Q,K + 4 Joker。<br>
-        8. <b style="color:#60a5fa">斷線保護</b>: 離開房間後，暱稱與遊戲進度將保留，重新輸入同名即可回到座位。
+        8. <b style="color:#60a5fa">斷線保護</b>: 離開房間後，暱稱與遊戲進度將保留，重新輸入同名即可回到座位。<br>
+        
+        <label style="display:block; margin-top:10px; color:#facc15; font-weight:bold; cursor:pointer; padding:5px; border:1px dashed rgba(250, 204, 21, 0.5); border-radius:5px;">
+            <input type="checkbox" id="checkAnytimeLiar" style="width:auto; vertical-align:middle; margin-right:5px;">
+            🔓 開啟「隨時抓謊」模式 (所有人皆可抓謊)
+        </label>
     </div>
 
     <button id="btn-confirm" class="menu-btn" onclick="createRoom()">確認創立</button>
@@ -767,6 +772,7 @@
             let metaInfo = "";
             if (r.type === 'liar') {
                 metaInfo = `人數: ${userCount}`;
+                if (r.anytimeLiar) metaInfo += ` | 隨時抓謊ON`;
             } else {
                 const rows = r.rows || 3;
                 const cols = r.cols || 3;
@@ -935,13 +941,15 @@
         let roomData = { name, password: pass, type: selectedGameType, users: {}, status: 'waiting', chat: {} };
 
         if (selectedGameType === 'liar') {
+            const anytimeLiar = document.getElementById('checkAnytimeLiar').checked;
             roomData = { 
                 ...roomData, 
                 gameState: 'waiting', 
                 deck: [], 
                 stack: [], 
                 hands: {}, 
-                guns: {} 
+                guns: {},
+                anytimeLiar: anytimeLiar 
             };
         } else {
             let rows = parseInt(document.getElementById('inputRows').value) || 3;
@@ -1103,7 +1111,7 @@
         document.getElementById('liar-wrapper').classList.remove('hidden');
         
         document.getElementById('roomDisplayInfo').innerText = data.name;
-        document.getElementById('gameMetaInfo').innerText = "Liar's Deck";
+        document.getElementById('gameMetaInfo').innerText = "Liar's Deck" + (data.anytimeLiar ? " | 隨時抓謊ON" : "");
 
         const users = data.users || {};
         const playerKeys = data.playerOrder || Object.keys(users);
@@ -1214,13 +1222,38 @@
                     btnCall.disabled = false;
                     btnPlay.disabled = false;
                 }
+                
+                const hasStack = (data.stack && data.stack.length > 0);
+                const isAmAlive = !data.guns[currentUserKey].isDead;
 
+                // 決定 Play 按鈕顯示
                 if (isMyTurn) {
                     btnPlay.classList.remove('hidden');
-                    btnCall.classList.toggle('hidden', !(data.stack && data.stack.length > 0));
-                    btnCall.innerText = "LIAR!";
                 } else {
                     btnPlay.classList.add('hidden');
+                }
+
+                // 決定 Liar 按鈕顯示
+                let showCall = false;
+                if (hasStack && isAmAlive) {
+                    // 1. 一般規則：輪到我，可以抓上家
+                    if (isMyTurn) {
+                        showCall = true;
+                    }
+                    // 2. 隨時抓謊規則 (Anytime Liar)
+                    else if (data.anytimeLiar) {
+                        // 所有人都可以抓，除非是我自己剛剛出的牌 (不能抓自己)
+                        const lastOwner = lastMove ? lastMove.owner : null;
+                        if (currentUserKey !== lastOwner) {
+                            showCall = true;
+                        }
+                    }
+                }
+
+                if (showCall) {
+                    btnCall.classList.remove('hidden');
+                    btnCall.innerText = "LIAR!";
+                } else {
                     btnCall.classList.add('hidden');
                 }
             }
@@ -1566,17 +1599,18 @@
         let suitCount = 6; 
         let jokerCount = 2;
 
-        // 多人模式 (>=5人)：8組花色 (24張) + 4 Joker = 28張 (每人5張可供5.6人 -> 5人)
+        // 修正：針對 5 人以上或人數更多時的動態計算
         if (playerCount >= 5) {
             suitCount = 8;
             jokerCount = 4;
-        }
-
-        // 自動擴充檢查：若人數真的非常多(6人+)，確保每人有5張牌
-        while ((suitCount * 3 + jokerCount) < (playerCount * 5)) {
-            suitCount++; // 增加一組花色
-            // 為了保持混亂度，每增加兩組花色多加一張鬼牌
-            if (suitCount % 2 === 0) jokerCount++;
+            
+            // 確保總牌數 (A+Q+K + Joker) >= 5 * 人數
+            // A, Q, K 張數由 suitCount 決定，因此自動保持一致
+            while ((suitCount * 3 + jokerCount) < (playerCount * 5)) {
+                suitCount++;
+                // 機制：每增加兩組 A,Q,K，額外增加一張 Joker 以保持比例
+                if (suitCount % 2 === 0) jokerCount++;
+            }
         }
 
         const ranks = ['A', 'Q', 'K'];
@@ -1697,13 +1731,15 @@
         if(btnCall) btnCall.disabled = true;
         processingAction = true;
 
+        // 重新從 DB 獲取一次最新狀態，以確保多人同時點擊時只有第一位生效
         const roomSnapshot = await get(ref(db, `ongame_room/${currentRoomId}`));
         const rData = roomSnapshot.val();
 
-        // 檢查數據是否合法，若不合法則恢復按鈕並取消
-        if (!rData || !rData.stack || rData.stack.length === 0) {
+        // 檢查數據是否合法，以及遊戲狀態是否仍為 playing (若已變成 challenge，代表有人先點了)
+        if (!rData || !rData.stack || rData.stack.length === 0 || rData.gameState !== 'playing') {
             processingAction = false;
             if(btnCall) btnCall.disabled = false;
+            // 可以選擇提示玩家慢了一步
             return;
         }
 
@@ -1711,8 +1747,16 @@
         const lastEntry = stack[stack.length - 1];
         const target = rData.targetRank;
         
+        // 如果是「隨時抓謊」模式，再次確認按下按鈕的人不是剛出牌的人 (雙重保險)
+        if (rData.anytimeLiar && lastEntry.owner === currentUserKey) {
+             processingAction = false;
+             if(btnCall) btnCall.disabled = false;
+             return alert("不能抓自己！");
+        }
+
         let isLiar = lastEntry.cards.some(c => c.rank !== target && c.rank !== 'Joker');
         
+        // 若抓錯了，挑戰者(currentUser)變輸家；抓對了，出牌者(lastEntry.owner)變輸家
         const loserId = isLiar ? lastEntry.owner : currentUserKey;
         const loserUser = rData.users[loserId];
         const loserName = loserUser ? loserUser.name : "未知玩家";
@@ -1755,14 +1799,16 @@
         let jokerCount = 2;
         const playerCount = alive.length;
 
+        // 修正：針對 5 人以上或人數更多時的動態計算
         if (playerCount >= 5) {
             suitCount = 8;
             jokerCount = 4;
-        }
-
-        while ((suitCount * 3 + jokerCount) < (playerCount * 5)) {
-            suitCount++;
-            if (suitCount % 2 === 0) jokerCount++;
+            
+            // 確保總牌數 (A+Q+K + Joker) >= 5 * 人數
+            while ((suitCount * 3 + jokerCount) < (playerCount * 5)) {
+                suitCount++;
+                if (suitCount % 2 === 0) jokerCount++;
+            }
         }
 
         const ranks = ['A', 'Q', 'K'];
