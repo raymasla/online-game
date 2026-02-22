@@ -33,6 +33,7 @@
             padding: 20px;
             margin: 0;
             min-height: 100vh;
+	    min-height: 100dvh;
             touch-action: manipulation;
             overflow-x: hidden;
         }
@@ -449,7 +450,9 @@
 
         /* --- Q版輸入暱稱 Modal 樣式 --- */
         .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; 
+	    height: 100vh;
+	    height: 100dvh;
             background: rgba(0,0,0,0.7); z-index: 2000;
             display: flex; justify-content: center; align-items: center;
             backdrop-filter: blur(5px);
@@ -594,8 +597,28 @@
         .uno-card:hover { transform: translateY(-20px) scale(1.08); z-index: 50; box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
         .uno-card.selected { transform: translateY(-35px) scale(1.12); z-index: 49; border-color: var(--uno-yellow); box-shadow: 0 0 20px var(--uno-yellow); }
         .uno-card.disabled { filter: grayscale(0.7) brightness(0.5); cursor: not-allowed; pointer-events: none; }
-        .uno-card .card-oval { width: 85%; height: 58%; background: white; border-radius: 50% / 45%; transform: rotate(-30deg); display: flex; align-items: center; justify-content: center; }
-        .uno-card .card-symbol { font-family: 'Arial Black'; font-size: 1.8em; }
+        
+        /* == ✅ 這次修改的核心：修正卡牌中間數字不見的問題 == */
+        .uno-card .card-oval { 
+            width: 85%; height: 58%; background: white; 
+            border-radius: 50% / 45%; transform: rotate(-30deg); 
+            display: flex; align-items: center; justify-content: center; 
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2); 
+        }
+        .uno-card .card-symbol { 
+            font-family: 'Arial Black'; 
+            font-size: 2.2em; /* 稍微放大 */
+            transform: rotate(30deg); /* 抵銷外層的旋轉，讓數字直立擺正 */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3); /* 加點立體感 */
+        }
+        /* 依據不同卡牌顏色給予中間數字對應的顏色 */
+        .uno-bg-red .card-symbol { color: var(--uno-red); }
+        .uno-bg-blue .card-symbol { color: var(--uno-blue); }
+        .uno-bg-green .card-symbol { color: var(--uno-green); }
+        .uno-bg-yellow .card-symbol { color: #d97706; /* 黃色在白底需要深一點點才清楚 */ }
+        .uno-bg-black .card-symbol, .uno-bg-wild .card-symbol { color: #1e293b; }
+        /* == 修改結束 == */
+
         .uno-card .corner { position: absolute; font-family: 'Arial Black'; font-size: 0.85em; color: white; text-shadow: 1px 1px 2px black; }
         .uno-card .tl { top: 3px; left: 5px; }
         .uno-card .br { bottom: 3px; right: 5px; transform: rotate(180deg); }
@@ -634,9 +657,9 @@
     <div id="allRoomsContainer">搜尋中...</div>
     <hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;">
     <button class="menu-btn" onclick="showCreateRoom('ttt')">創立 圈圈叉叉 ⭕❌</button>
-    <button class="menu-btn btn-c4" onclick="showCreateRoom('c4')">創立 四連棋 (🔴🔵)</button>
+    <button class="menu-btn btn-c4" onclick="showCreateRoom('c4')">創立 四連棋 🔴🔵</button>
     <button class="menu-btn btn-liar" onclick="showCreateRoom('liar')">創立 騙子桌遊 🔫🃏</button>
-    <button class="menu-btn" style="background: linear-gradient(135deg, #f59e0b, #ef4444);" onclick="showCreateRoom('uno')">創立 UNO 🃏</button>
+    <button class="menu-btn" style="background: linear-gradient(135deg, #f59e0b, #ef4444);" onclick="showCreateRoom('uno')">創立 UNO 🔄🃏</button>
     <hr style="border: 0; height: 1px; background: rgba(255,255,255,0.2); margin: 15px 0;">
     <button class="menu-btn btn-purple" onclick="window.open('https://raymasla.github.io/whois/')">
     前往 誰是臥底🕵️
@@ -908,6 +931,21 @@
     let unoLastRenderedAction = "";
     let unoCenterMsgTimeoutId = null;
     let unoShowGameMsg = true; 
+
+    // --- UNO 取得下一個仍在遊戲中（未完成）玩家的 Helper 函數 ---
+    function getUnoNextActiveIndex(data, startIdx, dir, steps, tempFinishedList = null) {
+        let finished = tempFinishedList || data.finishedPlayers || [];
+        let total = data.playerOrder.length;
+        if (total - finished.length <= 1 && finished.length > 0) return startIdx;
+        let curr = startIdx;
+        let taken = 0;
+        while(taken < steps) {
+            curr = (curr + dir) % total;
+            if (curr < 0) curr += total;
+            if (!finished.includes(data.playerOrder[curr])) taken++;
+        }
+        return curr;
+    }
 
     // --- 玩家名稱初始化 (Sequence 1~99) ---
     let myName = localStorage.getItem('playerName');
@@ -1375,9 +1413,15 @@
                 btnPass.classList.add('hidden');
             }
         } else if (data.gameState === 'ended') {
-            const winner = data.users[data.winner]?.name;
-            statusEl.innerText = `🏆 贏家: ${winner}`;
-            setTimeout(() => { if (confirm("重新開始?")) unoResetGame(); }, 1500);
+            const finished = data.finishedPlayers || [];
+            let rankHtml = finished.map((uid, idx) => {
+                let badge = idx === 0 ? '🥇 第一名' : idx === 1 ? '🥈 第二名' : idx === 2 ? '🥉 第三名' : `🏅 第${idx + 1}名`;
+                return `<div style="margin: 10px 0;">${badge}：${data.users[uid]?.name || '未知'}</div>`;
+            }).join('');
+            
+            document.getElementById('win-message').innerHTML = `🏆 UNO 遊戲結束 🏆<br><div style="font-size: 0.5em; line-height: 1.5; margin-top: 20px; text-align: left; display: inline-block;">${rankHtml}</div>`;
+            document.getElementById('win-overlay').style.display = 'flex';
+            statusEl.innerText = `遊戲結束！`;
         }
 
         const centerMsgEl = document.getElementById('uno-center-message');
@@ -1404,9 +1448,19 @@
             const handCount = (data.hands && data.hands[uid]) ? data.hands[uid].length : 0;
             const isActive = (data.gameState === 'playing' && idx === data.turnIndex);
             const isOffline = !u.online;
+            const isFinished = (data.finishedPlayers || []).includes(uid);
+            
             const div = document.createElement('div');
             div.className = `uno-opponent-card ${isActive ? 'active' : ''}`;
-            div.innerHTML = `<div class="opp-name">${isOffline ? u.name + ' (離線)' : u.name}</div><div class="opp-count">${handCount}</div><small style="font-size:0.6rem; color:#94a3b8;">cards</small>`;
+            
+            if (isFinished) {
+                let rankIdx = data.finishedPlayers.indexOf(uid);
+                let badge = rankIdx === 0 ? '🥇' : rankIdx === 1 ? '🥈' : rankIdx === 2 ? '🥉' : `${rankIdx + 1}.`;
+                div.innerHTML = `<div class="opp-name">${isOffline ? u.name + ' (離線)' : u.name}</div><div class="opp-count">${badge}</div><small style="font-size:0.6rem; color:#facc15;">完成</small>`;
+                div.style.opacity = '0.6';
+            } else {
+                div.innerHTML = `<div class="opp-name">${isOffline ? u.name + ' (離線)' : u.name}</div><div class="opp-count">${handCount}</div><small style="font-size:0.6rem; color:#94a3b8;">cards</small>`;
+            }
             oppContainer.appendChild(div);
         });
 
@@ -1516,7 +1570,8 @@
         await update(ref(db, `ongame_room/${currentRoomId}`), {
             gameState: 'playing', deck, hands, discardPile: [firstCardWithRotation],
             playerOrder: users.sort(() => Math.random() - 0.5), turnIndex: 0, direction: 1,
-            currentColor: firstCard.color, accumulatedDraw: 0, lastAction: "遊戲開始！", status: 'playing'
+            currentColor: firstCard.color, accumulatedDraw: 0, lastAction: "遊戲開始！", status: 'playing',
+            finishedPlayers: []
         });
     };
 
@@ -1576,32 +1631,38 @@
 
         const updates = {};
         updates[`ongame_room/${currentRoomId}/hands/${currentUserKey}`] = newHand;
+        
+        // 處理遊戲結束/完成玩家名單
+        let finishedList = data.finishedPlayers || [];
+        if (newHand.length === 0 && !finishedList.includes(currentUserKey)) {
+            finishedList = [...finishedList, currentUserKey];
+        }
+        updates[`ongame_room/${currentRoomId}/finishedPlayers`] = finishedList;
+        let activeCount = data.playerOrder.length - finishedList.length;
+
         let dir = data.direction, acc = data.accumulatedDraw, steps = 1, newlyAddedAcc = 0;
         let actionMsg = "";
         const myNameInGame = data.users[currentUserKey].name;
 
         cards.forEach(c => {
             if (c.type === 'reverse') {
-                if (data.playerOrder.length === 2) steps += 1;
+                if (activeCount <= 2) steps += 1; // 剩2名在場玩家時迴轉等同禁止
                 else dir *= -1;
                 actionMsg = `${myNameInGame} 進行了迴轉！`;
             }
             if (c.type === 'skip') {
                 steps += 1;
-                let targetIdx = (data.turnIndex + (dir * 1)) % data.playerOrder.length;
-                if (targetIdx < 0) targetIdx += data.playerOrder.length;
+                let targetIdx = getUnoNextActiveIndex(data, data.turnIndex, dir, 1, finishedList);
                 actionMsg = `${myNameInGame} 禁止了 ${data.users[data.playerOrder[targetIdx]].name}！`;
             }
             if (c.type === 'draw2') {
                 newlyAddedAcc += 2;
-                let targetIdx = (data.turnIndex + (dir * 1)) % data.playerOrder.length;
-                if (targetIdx < 0) targetIdx += data.playerOrder.length;
+                let targetIdx = getUnoNextActiveIndex(data, data.turnIndex, dir, 1, finishedList);
                 actionMsg = `${myNameInGame} 讓 ${data.users[data.playerOrder[targetIdx]].name} 多了 2 張牌`;
             }
             if (c.type === 'wild4') {
                 newlyAddedAcc += 4;
-                let targetIdx = (data.turnIndex + (dir * 1)) % data.playerOrder.length;
-                if (targetIdx < 0) targetIdx += data.playerOrder.length;
+                let targetIdx = getUnoNextActiveIndex(data, data.turnIndex, dir, 1, finishedList);
                 const colorMap = { red: '紅色', blue: '藍色', green: '綠色', yellow: '黃色' };
                 actionMsg = `${myNameInGame} 讓 ${data.users[data.playerOrder[targetIdx]].name} 多了 4 張牌 並選取了 ${colorMap[nextColor]}`;
             }
@@ -1613,8 +1674,7 @@
         const cardsWithRotation = cards.map(card => ({ ...card, rotation: card.rotation || (Math.random()*20-10).toFixed(1) }));
 
         if (newlyAddedAcc > 0 && !(data.settings && data.settings.stack)) {
-            let nextIdx = (data.turnIndex + (dir * steps)) % data.playerOrder.length;
-            if (nextIdx < 0) nextIdx += data.playerOrder.length;
+            let nextIdx = getUnoNextActiveIndex(data, data.turnIndex, dir, steps, finishedList);
             const targetUserKey = data.playerOrder[nextIdx];
             let currentDeck = data.deck || [], currentDiscard = [...data.discardPile, ...cardsWithRotation], drawn = [];
             for (let k = 0; k < newlyAddedAcc; k++) {
@@ -1630,7 +1690,7 @@
             updates[`ongame_room/${currentRoomId}/hands/${targetUserKey}`] = sortUnoHandArray([...targetHand, ...drawn]);
             updates[`ongame_room/${currentRoomId}/deck`] = currentDeck;
             updates[`ongame_room/${currentRoomId}/discardPile`] = currentDiscard;
-            steps += 1;
+            steps += 1; // victim被跳過
             updates[`ongame_room/${currentRoomId}/accumulatedDraw`] = 0;
         } else {
             acc += newlyAddedAcc;
@@ -1638,14 +1698,17 @@
             updates[`ongame_room/${currentRoomId}/discardPile`] = [...data.discardPile, ...cardsWithRotation];
         }
 
-        let nextIdx = (data.turnIndex + (dir * steps)) % data.playerOrder.length;
-        if (nextIdx < 0) nextIdx += data.playerOrder.length;
+        let nextIdx = getUnoNextActiveIndex(data, data.turnIndex, dir, steps, finishedList);
         updates[`ongame_room/${currentRoomId}/turnIndex`] = nextIdx;
         updates[`ongame_room/${currentRoomId}/direction`] = dir;
         updates[`ongame_room/${currentRoomId}/currentColor`] = nc;
-        if (newHand.length === 0) {
+
+        // 若只剩下最後一名玩家，遊戲結束
+        if (finishedList.length >= data.playerOrder.length - 1) {
             updates[`ongame_room/${currentRoomId}/gameState`] = 'ended';
-            updates[`ongame_room/${currentRoomId}/winner`] = currentUserKey;
+            let lastPlayer = data.playerOrder.find(uid => !finishedList.includes(uid));
+            if (lastPlayer) finishedList.push(lastPlayer);
+            updates[`ongame_room/${currentRoomId}/finishedPlayers`] = finishedList;
         }
         
         unoSelectedIndices = []; // 出完牌強制歸位 (移到 update 之前，防止 onValue 渲染到舊的選取狀態)
@@ -1731,8 +1794,7 @@
             } else finishUnoPlayDrawn(card, null);
         } else {
             const newHand = sortUnoHandArray([...data.hands[currentUserKey], card]);
-            let nextIdx = (data.turnIndex + data.direction) % data.playerOrder.length;
-            if (nextIdx < 0) nextIdx += data.playerOrder.length;
+            let nextIdx = getUnoNextActiveIndex(data, data.turnIndex, data.direction, 1);
             
             unoSelectedIndices = []; // 提早重置
             
@@ -1747,19 +1809,22 @@
     async function finishUnoPlayDrawn(card, wildColor) {
         const data = roomDataCache;
         const updates = {};
+        
+        let finishedList = data.finishedPlayers || [];
+        let activeCount = data.playerOrder.length - finishedList.length;
+
         let dir = data.direction, steps = 1, acc = data.accumulatedDraw, newlyAddedAcc = 0;
         let actionMsg = "";
         const myNameInGame = data.users[currentUserKey].name;
-        if (card.type === 'reverse') { if (data.playerOrder.length === 2) steps += 1; else dir *= -1; actionMsg = `${myNameInGame} 進行了迴轉！`; }
-        if (card.type === 'skip') { steps += 1; let ti = (data.turnIndex + dir) % data.playerOrder.length; if (ti < 0) ti += data.playerOrder.length; actionMsg = `${myNameInGame} 禁止了 ${data.users[data.playerOrder[ti]].name}！`; }
-        if (card.type === 'draw2') { newlyAddedAcc += 2; let ti = (data.turnIndex + dir) % data.playerOrder.length; if (ti < 0) ti += data.playerOrder.length; actionMsg = `${myNameInGame} 讓 ${data.users[data.playerOrder[ti]].name} 多了 2 張牌`; }
-        if (card.type === 'wild4') { newlyAddedAcc += 4; let ti = (data.turnIndex + dir) % data.playerOrder.length; if (ti < 0) ti += data.playerOrder.length; const colorMap = {red:'紅色',blue:'藍色',green:'綠色',yellow:'黃色'}; actionMsg = `${myNameInGame} 讓 ${data.users[data.playerOrder[ti]].name} 多了 4 張牌 並選取了 ${colorMap[wildColor]}`; }
+        if (card.type === 'reverse') { if (activeCount <= 2) steps += 1; else dir *= -1; actionMsg = `${myNameInGame} 進行了迴轉！`; }
+        if (card.type === 'skip') { steps += 1; let ti = getUnoNextActiveIndex(data, data.turnIndex, dir, 1, finishedList); actionMsg = `${myNameInGame} 禁止了 ${data.users[data.playerOrder[ti]].name}！`; }
+        if (card.type === 'draw2') { newlyAddedAcc += 2; let ti = getUnoNextActiveIndex(data, data.turnIndex, dir, 1, finishedList); actionMsg = `${myNameInGame} 讓 ${data.users[data.playerOrder[ti]].name} 多了 2 張牌`; }
+        if (card.type === 'wild4') { newlyAddedAcc += 4; let ti = getUnoNextActiveIndex(data, data.turnIndex, dir, 1, finishedList); const colorMap = {red:'紅色',blue:'藍色',green:'綠色',yellow:'黃色'}; actionMsg = `${myNameInGame} 讓 ${data.users[data.playerOrder[ti]].name} 多了 4 張牌 並選取了 ${colorMap[wildColor]}`; }
         if (!actionMsg) actionMsg = `${myNameInGame} 打出了 ${card.value}`;
         updates[`ongame_room/${currentRoomId}/lastAction`] = actionMsg;
         const cardWithRotation = { ...card, rotation: card.rotation || (Math.random()*20-10).toFixed(1) };
         if (newlyAddedAcc > 0 && !(data.settings && data.settings.stack)) {
-            let nextIdx = (data.turnIndex + (dir * steps)) % data.playerOrder.length;
-            if (nextIdx < 0) nextIdx += data.playerOrder.length;
+            let nextIdx = getUnoNextActiveIndex(data, data.turnIndex, dir, steps, finishedList);
             const targetUserKey = data.playerOrder[nextIdx];
             let currentDeck = data.deck || [], currentDiscard = [...data.discardPile, cardWithRotation], drawn = [];
             for (let k = 0; k < newlyAddedAcc; k++) {
@@ -1776,8 +1841,7 @@
             updates[`ongame_room/${currentRoomId}/accumulatedDraw`] = acc;
             updates[`ongame_room/${currentRoomId}/discardPile`] = [...data.discardPile, cardWithRotation];
         }
-        let nextIdx = (data.turnIndex + (dir * steps)) % data.playerOrder.length;
-        if (nextIdx < 0) nextIdx += data.playerOrder.length;
+        let nextIdx = getUnoNextActiveIndex(data, data.turnIndex, dir, steps, finishedList);
         let nc = wildColor || card.color;
         updates[`ongame_room/${currentRoomId}/turnIndex`] = nextIdx;
         updates[`ongame_room/${currentRoomId}/direction`] = dir;
@@ -1800,8 +1864,7 @@
                 drawn.push(deck.shift());
             }
             const newHand = sortUnoHandArray([...data.hands[currentUserKey], ...drawn]);
-            let nextIdx = (data.turnIndex + data.direction) % data.playerOrder.length;
-            if (nextIdx < 0) nextIdx += data.playerOrder.length;
+            let nextIdx = getUnoNextActiveIndex(data, data.turnIndex, data.direction, 1);
             
             unoSelectedIndices = []; // 提早重置
             
@@ -1817,8 +1880,9 @@
     window.unoResetGame = () => {
         unoSelectedIndices = []; // 重置強制歸位
         update(ref(db, `ongame_room/${currentRoomId}`), {
-            gameState: 'waiting', hands: {}, discardPile: [], accumulatedDraw: 0, lastAction: "準備重新開始"
+            gameState: 'waiting', hands: {}, discardPile: [], accumulatedDraw: 0, lastAction: "準備重新開始", finishedPlayers: []
         });
+        closeWinOverlay();
     };
 
     function unoGenerateDeck() {
@@ -2747,6 +2811,8 @@
         if (!roomDataCache) return;
         if (roomDataCache.type === 'liar') {
             startLiarGame(); 
+        } else if (roomDataCache.type === 'uno') {
+            unoResetGame();
         } else {
             const rows = roomDataCache.rows || 3;
             const cols = roomDataCache.cols || 3;
