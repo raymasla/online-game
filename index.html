@@ -248,7 +248,6 @@
         /* --- 移植版 騙子桌遊 (Liar's Deck) 樣式 --- */
         /* ========================================= */
         #liar-wrapper {
-            /* 木質邊框改為暗黑高級賭桌 */
             background: radial-gradient(circle, #064e3b 0%, #022c22 100%);
             border: 10px solid #3f2e26;
             border-radius: 20px;
@@ -358,19 +357,16 @@
         .btn-game:active { transform: translateY(4px); box-shadow: none; }
         .btn-game:disabled { background: #64748b; cursor: not-allowed; box-shadow: none; transform: translateY(4px); filter: grayscale(0.8); }
 
-        /* 修改後的出牌按鈕：更大、更寬、更顯眼 */
         .btn-play { 
             background: linear-gradient(to bottom, #3b82f6, #1d4ed8); 
-            font-size: 1.4em; /* 字體加大 */
-            padding: 0 40px; /* 按鈕加寬，容易按 */
-            min-width: 120px; /* 確保最小寬度 */
+            font-size: 1.4em; 
+            padding: 0 40px; 
+            min-width: 120px; 
         }
         
         .btn-liar-call { background: linear-gradient(to bottom, #ef4444, #b91c1c); font-size: 1.3em; letter-spacing: 2px; }
 
         /* --- 動畫特效層 --- */
-        
-        /* 開場所有牌展示層 */
         #intro-overlay {
             position: absolute; top:0; left:0; width:100%; height:100%;
             background: rgba(0,0,0,0.9); z-index: 300;
@@ -391,7 +387,6 @@
         }
         @keyframes popIn { 0%{transform:scale(0); opacity:0;} 100%{transform:scale(1); opacity:1;} }
 
-        /* 抓謊翻牌層 */
         .reveal-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); z-index: 100;
@@ -411,7 +406,6 @@
         .reveal-face.correct { border-color: #10b981; box-shadow: 0 0 30px #10b981; }
         .reveal-face.wrong { border-color: #ef4444; box-shadow: 0 0 30px #ef4444; color: #ef4444; }
 
-        /* 槍擊動畫層 */
         .gun-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 200; pointer-events: none; display: none;
@@ -502,8 +496,8 @@
 
         /* ========== UNO 遊戲區 (李騙子桌遊風格) ========== */
         :root {
-            --uno-card-w: 70px;
-            --uno-card-h: 105px;
+            --uno-card-w: 56px; /* 預設調小 */
+            --uno-card-h: 84px; /* 預設調小 */
             --uno-red: #ef4444;
             --uno-blue: #3b82f6;
             --uno-green: #10b981;
@@ -527,13 +521,17 @@
         }
         .uno-room-info { font-size: 0.9rem; color: #cbd5e1; }
         .uno-header-btns { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        
         .uno-table-area {
             flex: 1; position: relative; display: flex; justify-content: center; align-items: center;
-            gap: 30px; perspective: 800px; min-height: 180px;
+            gap: 30px; perspective: 800px; min-height: 220px; 
+            padding: 50px 10px 30px 10px; 
+            box-sizing: border-box;
         }
         .uno-opponents-bar {
-            position: absolute; top: 8px; left: 0; right: 0;
+            position: absolute; top: 10px; left: 0; right: 0;
             display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+            z-index: 10;
         }
         .uno-opponent-card {
             background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
@@ -561,23 +559,30 @@
             border: 2px solid #64748b;
         }
         .uno-discard { border: 2px dashed rgba(255,255,255,0.2); }
+        
         #uno-center-message {
-            position: absolute; bottom: 60px; font-weight: bold; color: #facc15;
+            position: absolute; bottom: 10px; font-weight: bold; color: #facc15;
             text-shadow: 0 2px 4px black; font-size: 14px;
-            background: rgba(0,0,0,0.5); padding: 5px 12px; border-radius: 20px;
+            background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 20px;
+            z-index: 10;
         }
         .uno-bottom-section {
             background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-            padding: 10px 0; border-radius: 0 0 12px 12px;
+            padding: 10px 0 15px 0; border-radius: 0 0 12px 12px;
         }
-        .uno-controls { display: flex; gap: 12px; justify-content: center; margin-bottom: 8px; flex-wrap: wrap; }
+        .uno-controls { display: flex; gap: 15px; justify-content: center; margin-bottom: 5px; flex-wrap: wrap; }
         .uno-controls .btn-game { min-width: 90px; padding: 10px 20px; font-size: 1em; }
         .uno-controls .btn-game.btn-secondary { background: linear-gradient(to bottom, #475569, #334155); color: white; }
+        
         .uno-hand-scroll {
-            display: flex; justify-content: center; align-items: flex-end;
-            overflow-x: auto; padding: 15px 0; min-height: 120px; gap: 0;
+            display: flex; align-items: flex-end;
+            overflow-x: auto; padding: 45px 15px 20px 15px; min-height: 130px; gap: 0;
             -webkit-overflow-scrolling: touch;
         }
+        .uno-hand-scroll::before, .uno-hand-scroll::after {
+            content: ''; margin: auto;
+        }
+        
         .uno-card {
             width: var(--uno-card-w); height: var(--uno-card-h); border-radius: 8px;
             position: relative; display: flex; justify-content: center; align-items: center;
@@ -585,7 +590,7 @@
             user-select: none; transition: transform 0.2s; cursor: pointer;
             flex-shrink: 0; margin-left: -28px; transform-origin: center bottom;
         }
-        .uno-card:first-child { margin-left: 0 !important; }
+        .uno-card:first-of-type { margin-left: 0 !important; }
         .uno-card:hover { transform: translateY(-20px) scale(1.08); z-index: 50; box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
         .uno-card.selected { transform: translateY(-35px) scale(1.12); z-index: 49; border-color: var(--uno-yellow); box-shadow: 0 0 20px var(--uno-yellow); }
         .uno-card.disabled { filter: grayscale(0.7) brightness(0.5); cursor: not-allowed; pointer-events: none; }
@@ -756,7 +761,6 @@
         </div>
     </div>
 
-    <!-- UNO 遊戲區 (李騙子桌遊風格) -->
     <div id="uno-wrapper" class="hidden" style="position:relative;">
         <div class="uno-layout">
             <div class="uno-header">
@@ -798,7 +802,7 @@
                 </div>
                 <div style="text-align:left; margin-bottom:15px;">
                     <label style="color:#cbd5e1;">畫面縮放 (卡牌大小)</label>
-                    <input type="range" id="uno-setting-scale" min="0.6" max="1.5" step="0.1" value="1" style="width:100%; accent-color:#8b5cf6;" oninput="updateUnoScale(this.value)">
+                    <input type="range" id="uno-setting-scale" min="0.6" max="1.5" step="0.1" value="0.8" style="width:100%; accent-color:#8b5cf6;" oninput="updateUnoScale(this.value)">
                 </div>
                 <button class="btn-sm" style="background:#475569; color:white;" onclick="closeUnoSettings()">關閉</button>
             </div>
@@ -877,7 +881,7 @@
     const db = getDatabase(app);
     let currentRoomId = null, selectedGameType = 'ttt', roomDataCache = null;
     let currentUserKey = null;
-    let isLiarGame = false; // 標記是否為騙子桌遊
+    let isLiarGame = false; 
     
     let selectedLiarCards = []; 
     let isAnimating = false;
@@ -950,7 +954,6 @@
         }
         
         Object.entries(rooms).reverse().forEach(([id, r]) => {
-            // 計算線上人數 (UNO 用 online，其餘用 status !== 'offline')
             let userCount = 0;
             if (r.users) {
                 if (r.type === 'uno') userCount = Object.values(r.users).filter(u => u.online).length;
@@ -1014,7 +1017,6 @@
             if (input !== correctPass) { alert("密碼錯誤！"); return; }
         }
 
-        // --- 騙子桌遊特別處理機制 (讀取資料再決定進入方式) ---
         const roomSnapshot = await get(ref(db, `ongame_room/${id}`));
         const roomData = roomSnapshot.val();
         
@@ -1027,7 +1029,6 @@
         }
     };
 
-    // --- 騙子桌遊 Q版加入邏輯 ---
     let pendingRoomId = null;
     let pendingRoomData = null;
 
@@ -1064,7 +1065,6 @@
         let existingKey = null;
         let isOnline = false;
 
-        // 檢查暱稱是否存在 (騙子用 status，UNO 用 online)
         for (const [key, user] of Object.entries(users)) {
             if (user.name === inputName) {
                 existingKey = key;
@@ -1078,39 +1078,29 @@
         }
 
         if (existingKey && isOnline) {
-            // 重複且在線 -> 顯示錯誤訊息與動畫
             const title = document.getElementById('modalTitle');
             title.innerText = "痾ㄛ..好像有重複的名字 請重新輸入:>";
-            
-            // 簡單的搖晃動畫
             const box = document.querySelector('.modal-box');
             box.classList.remove('shaking');
-            void box.offsetWidth; // 觸發 reflow
+            void box.offsetWidth; 
             box.classList.add('shaking');
-            
-            return; // 停留在 Modal
+            return; 
         }
 
-        // --- FIX: 先保存 Room ID，因為 closeNameModal 會清空 pendingRoomId ---
         const targetRoomId = pendingRoomId;
-
-        // 通過檢查
         closeNameModal();
 
         if (existingKey) {
-            // 斷線重連
             myName = inputName;
             localStorage.setItem('playerName', myName);
             enterRoom(targetRoomId, existingKey);
         } else {
-            // 新玩家
             myName = inputName;
             localStorage.setItem('playerName', myName);
             enterRoom(targetRoomId, null);
         }
     };
 
-    // --- 房間管理 ---
     window.showCreateRoom = (type) => {
         selectedGameType = type;
         const btnInfinite = document.getElementById('btn-infinite');
@@ -1225,7 +1215,6 @@
         });
     };
 
-    // 加入房間 (支援重連 Key)
     window.enterRoom = (id, reconnectKey = null) => {
         currentRoomId = id;
         showSection('gameArea');
@@ -1241,7 +1230,6 @@
             currentUserKey = userRef.key;
         }
 
-        // 讀取房間類型以決定斷線行為
         get(ref(db, `ongame_room/${id}/type`)).then((snap) => {
             const type = snap.val();
             isLiarGame = (type === 'liar');
@@ -1264,12 +1252,9 @@
             if (!data) { alert("房間已被刪除或不存在"); leaveRoom(); return; }
             roomDataCache = data;
             
-            // 狀態鎖檢查
             if (isAnimating && data.type === 'liar') {
                 if (data.gameState === 'challenge') {
-                   // 允許觸發動畫
                 } else if (data.gameState === 'playing' || data.gameState === 'ended') {
-                   // 允許
                 } else {
                    return; 
                 }
@@ -1334,6 +1319,11 @@
         const order = data.playerOrder || users;
         const currentTurnUser = order[data.turnIndex];
         const isMyTurn = (currentTurnUser === currentUserKey);
+
+        // 重置選取狀態 (若非自己的回合、或者遊戲未在進行中，則將選取的牌降下歸位)
+        if ((!isMyTurn || data.gameState !== 'playing') && unoSelectedIndices.length > 0) {
+            unoSelectedIndices = [];
+        }
 
         if (data.hands) {
             Object.entries(data.hands).forEach(([uid, hand]) => {
@@ -1502,6 +1492,7 @@
     };
 
     window.unoStartGame = async () => {
+        unoSelectedIndices = []; // 開始遊戲強制歸位
         const data = roomDataCache;
         const users = Object.keys(data.users || {});
         const deck = unoGenerateDeck();
@@ -1525,14 +1516,25 @@
         const cardsToPlay = unoSelectedIndices.map(i => hand[i]);
         const top = data.discardPile[data.discardPile.length - 1];
         const lead = cardsToPlay[0];
+        
         if (data.accumulatedDraw > 0) {
             const isValid = (top.type === 'draw2' && lead.type === 'draw2') || (top.type === 'wild4' && lead.type === 'wild4');
-            if (!isValid) return alert("必須出同樣的加牌(+2/+4)來疊加，或按罰抽");
+            if (!isValid) {
+                alert("必須出同樣的加牌(+2/+4)來疊加，或按罰抽");
+                unoSelectedIndices = []; // 無效操作歸位
+                renderUnoGame(roomDataCache);
+                return;
+            }
         } else {
             const colorMatch = (lead.color === data.currentColor);
             const valueMatch = (lead.value === top.value);
             const isWild = (lead.color === 'black');
-            if (!colorMatch && !valueMatch && !isWild) return alert("這張牌無法打出！");
+            if (!colorMatch && !valueMatch && !isWild) {
+                alert("這張牌無法打出！");
+                unoSelectedIndices = []; // 無效操作歸位
+                renderUnoGame(roomDataCache);
+                return;
+            }
         }
         if (cardsToPlay[cardsToPlay.length - 1].color === 'black') {
             unoPendingPlayCards = { indices: [...unoSelectedIndices], cards: cardsToPlay };
@@ -1634,8 +1636,9 @@
             updates[`ongame_room/${currentRoomId}/gameState`] = 'ended';
             updates[`ongame_room/${currentRoomId}/winner`] = currentUserKey;
         }
+        
+        unoSelectedIndices = []; // 出完牌強制歸位 (移到 update 之前，防止 onValue 渲染到舊的選取狀態)
         await update(ref(db), updates);
-        unoSelectedIndices = [];
         unoIsProcessing = false;
     }
 
@@ -1719,11 +1722,14 @@
             const newHand = sortUnoHandArray([...data.hands[currentUserKey], card]);
             let nextIdx = (data.turnIndex + data.direction) % data.playerOrder.length;
             if (nextIdx < 0) nextIdx += data.playerOrder.length;
+            
+            unoSelectedIndices = []; // 提早重置
+            
             update(ref(db, `ongame_room/${currentRoomId}`), {
                 [`hands/${currentUserKey}`]: newHand,
                 turnIndex: nextIdx,
                 lastAction: `${data.users[currentUserKey].name} 抽了一張牌`
-            }).then(() => { unoSelectedIndices = []; renderUnoGame(roomDataCache); });
+            }).then(() => { renderUnoGame(roomDataCache); });
         }
     };
 
@@ -1765,8 +1771,10 @@
         updates[`ongame_room/${currentRoomId}/turnIndex`] = nextIdx;
         updates[`ongame_room/${currentRoomId}/direction`] = dir;
         updates[`ongame_room/${currentRoomId}/currentColor`] = nc;
+        
+        unoSelectedIndices = []; // 提早重置
+        
         await update(ref(db), updates);
-        unoSelectedIndices = [];
         renderUnoGame(roomDataCache);
     }
 
@@ -1783,17 +1791,20 @@
             const newHand = sortUnoHandArray([...data.hands[currentUserKey], ...drawn]);
             let nextIdx = (data.turnIndex + data.direction) % data.playerOrder.length;
             if (nextIdx < 0) nextIdx += data.playerOrder.length;
+            
+            unoSelectedIndices = []; // 提早重置
+            
             await update(ref(db, `ongame_room/${currentRoomId}`), {
                 [`hands/${currentUserKey}`]: newHand, deck, discardPile: discard,
                 accumulatedDraw: 0, turnIndex: nextIdx,
                 lastAction: `${myNameInGame} 罰抽了 ${acc} 張牌`
             });
-            unoSelectedIndices = [];
             renderUnoGame(roomDataCache);
         } else unoDrawCardClick();
     };
 
     window.unoResetGame = () => {
+        unoSelectedIndices = []; // 重置強制歸位
         update(ref(db, `ongame_room/${currentRoomId}`), {
             gameState: 'waiting', hands: {}, discardPile: [], accumulatedDraw: 0, lastAction: "準備重新開始"
         });
@@ -1891,7 +1902,6 @@
         const users = data.users || {};
         const playerKeys = data.playerOrder || Object.keys(users);
         
-        // 1. 處理狀態顯示
         const statusEl = document.getElementById('liar-status-text');
         const targetEl = document.getElementById('liar-target-display');
         const stackArea = document.getElementById('liar-stack-area');
@@ -1915,7 +1925,6 @@
             isAnimating = false;
             processingAction = false;
             
-            // 只有當我是第一個玩家(且在線)才顯示開始按鈕
             if (playerKeys[0] === currentUserKey && activeCount >= 2) {
                 document.getElementById('btn-liar-start').classList.remove('hidden');
             } else {
@@ -1939,14 +1948,12 @@
             const curPlayer = users[curPlayerKey];
             const isMyTurn = (curPlayerKey === currentUserKey);
             
-            // --- 自動跳過機制 (Bug Fix) ---
             checkLiarTurnSkip(data, curPlayerKey, curPlayer);
 
             const aliveKeys = playerKeys.filter(k => !data.guns[k]?.isDead);
             const lastMove = data.stack && data.stack.length > 0 ? data.stack[data.stack.length - 1] : null;
             let forceCall = false;
 
-            // 檢查是否只剩兩人且上家出完牌
             const otherPlayersWithCards = aliveKeys.filter(k => k !== curPlayerKey && data.hands[k] && data.hands[k].length > 0);
             if (lastMove) {
                 if (aliveKeys.length === 2) {
@@ -1992,7 +1999,6 @@
                 const btnCall = document.getElementById('btn-liar-call');
                 const btnPlay = document.getElementById('btn-liar-play');
                 
-                // 解鎖按鈕 (如果是從動畫回復)
                 if (!isAnimating && !processingAction) {
                     btnCall.disabled = false;
                     btnPlay.disabled = false;
@@ -2001,23 +2007,18 @@
                 const hasStack = (data.stack && data.stack.length > 0);
                 const isAmAlive = !data.guns[currentUserKey].isDead;
 
-                // 決定 Play 按鈕顯示
                 if (isMyTurn) {
                     btnPlay.classList.remove('hidden');
                 } else {
                     btnPlay.classList.add('hidden');
                 }
 
-                // 決定 Liar 按鈕顯示
                 let showCall = false;
                 if (hasStack && isAmAlive) {
-                    // 1. 一般規則：輪到我，可以抓上家
                     if (isMyTurn) {
                         showCall = true;
                     }
-                    // 2. 隨時抓謊規則 (Anytime Liar)
                     else if (data.anytimeLiar) {
-                        // 所有人都可以抓，除非是我自己剛剛出的牌 (不能抓自己)
                         const lastOwner = lastMove ? lastMove.owner : null;
                         if (currentUserKey !== lastOwner) {
                             showCall = true;
@@ -2062,13 +2063,11 @@
             document.getElementById('win-overlay').style.display = 'flex';
         }
 
-        // 2. 渲染對手
         const oppRow = document.getElementById('liar-opponents');
         oppRow.innerHTML = "";
         playerKeys.forEach(k => {
             if (k === currentUserKey) return;
             const u = users[k];
-            // 若 u 不存在，顯示為未知離線
             const safeName = u ? u.name : "Unknown";
             const isOffline = !u || u.status === 'offline';
             
@@ -2102,7 +2101,6 @@
             oppRow.appendChild(div);
         });
         
-        // 2.5 渲染自己的槍枝狀態
         const myGunInfo = data.guns ? data.guns[currentUserKey] : {chamber:0, isDead:false};
         if (myGunDiv && data.gameState !== 'waiting') {
             let bulletsHTML = "";
@@ -2122,7 +2120,6 @@
         }
 
 
-        // 3. 渲染自己手牌
         const myHandDiv = document.getElementById('liar-my-hand');
         const myCards = (data.hands && data.hands[currentUserKey]) || [];
         myHandDiv.innerHTML = "";
@@ -2139,7 +2136,6 @@
             
             div.onclick = () => {
                 if (data.gameState !== 'playing') return;
-                // --- 狀態鎖檢查 ---
                 if (isAnimating || processingAction) return;
                 if (statusEl.innerHTML.includes("強制") || window.liarAutoCallPending || statusEl.innerHTML.includes("Liar!")) return; 
                 
@@ -2156,7 +2152,6 @@
             myHandDiv.appendChild(div);
         });
         
-        // 自己的槍與死亡狀態
         const myGun = data.guns && data.guns[currentUserKey];
         if (myGun && myGun.isDead) {
              statusEl.innerHTML = "<b style='color:red'>💀 你已死亡</b>";
@@ -2164,27 +2159,20 @@
         }
     }
 
-    // --- 自動跳過機制 (Bug Fix) ---
-    // 檢查當前玩家是否離線或不存在，若是，則跳過
     function checkLiarTurnSkip(data, curPlayerKey, curPlayer) {
-        // 如果我是當前「活著」的玩家之一 (避免所有觀戰者同時觸發)
         const myGun = data.guns && data.guns[currentUserKey];
         if (!myGun || myGun.isDead) return;
 
-        // 判斷當前輪到的玩家是否無效
         const isCurrentInvalid = !curPlayer || curPlayer.status === 'offline';
-        // 判斷當前輪到的玩家是否已死 (以防萬一)
         const isCurrentDead = data.guns && data.guns[curPlayerKey] && data.guns[curPlayerKey].isDead;
 
         if (isCurrentInvalid || isCurrentDead) {
             console.log("偵測到無效/離線/死亡玩家，準備跳過回合:", curPlayerKey);
             
-            // 為了避免同時寫入衝突，簡單判定：如果我是"下一位"順位的有效玩家，由我來執行跳過操作
             const players = data.playerOrder;
             let myIdx = players.indexOf(currentUserKey);
             let targetIdx = data.turnIndex;
             
-            // 尋找下一位"有效"玩家
             let foundNext = false;
             let nextValidIdx = targetIdx;
             let loopCount = 0;
@@ -2195,7 +2183,6 @@
                 const pu = data.users[pk];
                 const pg = data.guns[pk];
                 
-                // 有效條件: 存在 + 在線 + 沒死
                 if (pu && pu.status !== 'offline' && !pg.isDead) {
                     foundNext = true;
                     break;
@@ -2203,9 +2190,7 @@
                 loopCount++;
             }
 
-            // 如果我就是下一位有效玩家，或者全場只剩我一個且我不是當前回合者
             if (foundNext && nextValidIdx === myIdx) {
-                // 執行跳過
                  update(ref(db, `ongame_room/${currentRoomId}`), {
                     turnIndex: nextValidIdx
                 });
@@ -2213,7 +2198,6 @@
         }
     }
 
-    // --- 開場牌堆展示 (支援多人模式動態展示) ---
     function renderIntroDeck() {
         const overlay = document.getElementById('intro-overlay');
         const grid = document.getElementById('intro-grid');
@@ -2222,7 +2206,6 @@
         grid.innerHTML = "";
         side.innerHTML = "";
 
-        // 讀取牌庫設定 (相容舊版房間)
         let suitCount = 6;
         let jokerCount = 2;
         if (roomDataCache && roomDataCache.deckMeta) {
@@ -2230,7 +2213,6 @@
             jokerCount = roomDataCache.deckMeta.jokerCount;
         }
 
-        // 動態調整網格寬度以容納更多牌
         grid.style.gridTemplateColumns = `repeat(${suitCount}, 1fr)`;
 
         const baseSuits = ['♠', '♥', '♦', '♣'];
@@ -2241,13 +2223,11 @@
                 const div = document.createElement('div');
                 div.className = `intro-card-sm ${['♥','♦'].includes(suit)?'red':'black'}`;
                 div.innerText = suit + rank;
-                // 交錯動畫延遲
                 div.style.animationDelay = (i * 0.05 + rIdx * 0.3) + 's';
                 grid.appendChild(div);
             }
         });
 
-        // 渲染 Joker
         for(let i = 0; i < jokerCount; i++) {
             const div = document.createElement('div');
             div.className = 'intro-card-sm joker';
@@ -2258,10 +2238,9 @@
         }
     }
 
-    // --- 動畫邏輯 ---
     async function triggerChallengeAnimation(data) {
         if (isAnimating) return;
-        isAnimating = true; // 鎖定系統
+        isAnimating = true; 
 
         const res = data.challengeResult;
         const overlay = document.getElementById('liar-reveal-overlay');
@@ -2344,22 +2323,18 @@
         overlay.style.display = 'none';
         
         const players = rData.playerOrder;
-        // 如果我是第一個玩家 (Host)，負責推進下一局
         if (players[0] === currentUserKey) {
             nextLiarRound(rData);
         }
         
-        isAnimating = false; // 解鎖系統
-        processingAction = false; // 確保重置動作鎖
+        isAnimating = false; 
+        processingAction = false; 
     }
 
-    // --- 騙子桌遊 操作函式 (加入防呆與多人模式機制) ---
     window.startLiarGame = () => {
         if (isAnimating || processingAction) return; 
 
-        // 1. 判斷人數以決定牌庫大小
         const users = roomDataCache.users || {};
-        // 過濾掉離線玩家，避免發牌給不存在的人
         const activePlayers = Object.entries(users)
             .filter(([k, u]) => u.status !== 'offline')
             .map(([k, u]) => k);
@@ -2370,20 +2345,15 @@
              return;
         }
         
-        // 預設標準：6組花色 (18張) + 2 Joker = 20張 (每人5張可供4人)
         let suitCount = 6; 
         let jokerCount = 2;
 
-        // 修正：針對 5 人以上或人數更多時的動態計算
         if (playerCount >= 5) {
             suitCount = 8;
             jokerCount = 4;
             
-            // 確保總牌數 (A+Q+K + Joker) >= 5 * 人數
-            // A, Q, K 張數由 suitCount 決定，因此自動保持一致
             while ((suitCount * 3 + jokerCount) < (playerCount * 5)) {
                 suitCount++;
-                // 機制：每增加兩組 A,Q,K，額外增加一張 Joker 以保持比例
                 if (suitCount % 2 === 0) jokerCount++;
             }
         }
@@ -2405,7 +2375,6 @@
 
         deck.sort(() => Math.random() - 0.5);
 
-        // 發牌
         const hands = {};
         activePlayers.forEach(p => {
             if (deck.length >= 5) {
@@ -2418,7 +2387,6 @@
         const guns = {};
         activePlayers.forEach(p => guns[p] = { chamber: 0, bulletPos: Math.floor(Math.random()*6), isDead: false });
 
-        // 寫入 Firebase
         update(ref(db, `ongame_room/${currentRoomId}`), {
             gameState: 'intro',
             status: 'playing', 
@@ -2436,7 +2404,7 @@
     };
 
     window.playLiarCards = () => {
-        if (isAnimating || processingAction) return; // 鎖定檢查
+        if (isAnimating || processingAction) return; 
         if (!selectedLiarCards.length) return alert("請選牌");
         
         const myHand = roomDataCache.hands[currentUserKey];
@@ -2454,7 +2422,6 @@
         
         const aliveCount = players.filter(p => !roomDataCache.guns[p].isDead).length;
 
-        // 尋找下一位有效玩家 (修正邏輯：必須是在線 + 沒死)
         while (loopCount < players.length) {
             nextIdx = (nextIdx + 1) % players.length;
             const pId = players[nextIdx];
@@ -2462,7 +2429,6 @@
             const pHand = roomDataCache.hands[pId] || []; 
             const pUser = roomDataCache.users[pId];
 
-            // 跳過離線玩家
             if (!pUser || pUser.status === 'offline') {
                 loopCount++;
                 continue;
@@ -2483,8 +2449,6 @@
         }
 
         if (!found) {
-            // 如果找不到人，可能是所有人都斷線了，但這應該被 checkLiarTurnSkip 處理
-            // 這裡暫時維持原狀，或強制結束
             console.warn("找不到下一位玩家");
         }
 
@@ -2498,23 +2462,18 @@
     };
 
     window.callLiar = async () => {
-        // --- 關鍵防呆機制 ---
         if (isAnimating || processingAction) return; 
         
-        // 立即鎖定 UI，防止連續點擊
         const btnCall = document.getElementById('btn-liar-call');
         if(btnCall) btnCall.disabled = true;
         processingAction = true;
 
-        // 重新從 DB 獲取一次最新狀態，以確保多人同時點擊時只有第一位生效
         const roomSnapshot = await get(ref(db, `ongame_room/${currentRoomId}`));
         const rData = roomSnapshot.val();
 
-        // 檢查數據是否合法，以及遊戲狀態是否仍為 playing (若已變成 challenge，代表有人先點了)
         if (!rData || !rData.stack || rData.stack.length === 0 || rData.gameState !== 'playing') {
             processingAction = false;
             if(btnCall) btnCall.disabled = false;
-            // 可以選擇提示玩家慢了一步
             return;
         }
 
@@ -2522,7 +2481,6 @@
         const lastEntry = stack[stack.length - 1];
         const target = rData.targetRank;
         
-        // 如果是「隨時抓謊」模式，再次確認按下按鈕的人不是剛出牌的人 (雙重保險)
         if (rData.anytimeLiar && lastEntry.owner === currentUserKey) {
              processingAction = false;
              if(btnCall) btnCall.disabled = false;
@@ -2531,7 +2489,6 @@
 
         let isLiar = lastEntry.cards.some(c => c.rank !== target && c.rank !== 'Joker');
         
-        // 若抓錯了，挑戰者(currentUser)變輸家；抓對了，出牌者(lastEntry.owner)變輸家
         const loserId = isLiar ? lastEntry.owner : currentUserKey;
         const loserUser = rData.users[loserId];
         const loserName = loserUser ? loserUser.name : "未知玩家";
@@ -2553,11 +2510,8 @@
 
     function nextLiarRound(rData) {
         const players = rData.playerOrder;
-        // 存活判定: 沒死 且 (在線 或 暫時離線但仍在遊戲中)
-        // 為了避免遊戲僵局，我們只計算沒死的
         const alive = players.filter(p => !rData.guns[p].isDead);
         
-        // 如果只剩一人，勝利
         if (alive.length <= 1) {
             const winnerId = alive[0];
             const winnerUser = rData.users[winnerId];
@@ -2569,17 +2523,14 @@
             return;
         }
 
-        // 下一局重新洗牌邏輯
         let suitCount = 6; 
         let jokerCount = 2;
         const playerCount = alive.length;
 
-        // 修正：針對 5 人以上或人數更多時的動態計算
         if (playerCount >= 5) {
             suitCount = 8;
             jokerCount = 4;
             
-            // 確保總牌數 (A+Q+K + Joker) >= 5 * 人數
             while ((suitCount * 3 + jokerCount) < (playerCount * 5)) {
                 suitCount++;
                 if (suitCount % 2 === 0) jokerCount++;
@@ -2604,9 +2555,7 @@
         const hands = {};
         alive.forEach(p => hands[p] = deck.splice(0, 5));
 
-        // 選擇下一位起始玩家 (需排除離線者以免開局卡住)
         let availableStarters = alive.filter(p => rData.users[p] && rData.users[p].status !== 'offline');
-        // 如果全部都離線，就隨便選一個
         if (availableStarters.length === 0) availableStarters = alive;
 
         const starter = availableStarters[Math.floor(Math.random()*availableStarters.length)];
@@ -2805,7 +2754,6 @@
         document.getElementById(id).classList.remove('hidden');
     };
     
-    // 離開房間：騙子桌遊設 status offline，UNO 設 online false，其他直接刪除
     window.leaveRoom = () => {
         if (currentRoomId && currentUserKey) {
             if (isLiarGame) {
