@@ -1480,7 +1480,8 @@
         const statusEl = document.getElementById('uno-turn-status');
         if (data.gameState === 'waiting') {
             statusEl.innerText = `等待中 (${users.length}人)`;
-            document.getElementById('uno-btn-start').classList.toggle('hidden', users.length < 2);
+            const isHost = (users.length > 0 && users[0] === currentUserKey);
+            document.getElementById('uno-btn-start').classList.toggle('hidden', !(isHost && users.length >= 2));
             document.getElementById('uno-btn-play').classList.add('hidden');
             document.getElementById('uno-btn-pass').classList.add('hidden');
         } else if (data.gameState === 'playing') {
