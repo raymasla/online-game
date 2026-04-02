@@ -865,6 +865,13 @@
         <div id="uno-settings-modal" class="modal-overlay hidden">
             <div class="modal-box">
                 <h3>⚙️ UNO 設定</h3>
+                
+                <div id="uno-host-settings" class="hidden" style="text-align:left; margin-bottom:15px; padding-top:10px; border-top:1px solid #475569;">
+                    <label style="color:#facc15; font-weight:bold; display:block; margin-bottom:5px;">👑 房主設定</label>
+                    <label style="display:block; margin:8px 0; color:#cbd5e1;"><input type="checkbox" id="uno-setting-chain" onchange="updateUnoRules()"> 連出 (Chain)</label>
+                    <label style="display:block; margin:8px 0; color:#cbd5e1;"><input type="checkbox" id="uno-setting-stack" onchange="updateUnoRules()"> 疊加 (Stack +2/+4)</label>
+                </div>
+
                 <div style="text-align:left; margin-bottom:15px;">
                     <label style="color:#cbd5e1;">更改暱稱</label>
                     <div style="display:flex; gap:10px; margin-top:5px;">
@@ -876,7 +883,17 @@
                     <label style="color:#cbd5e1;">畫面縮放 (卡牌大小)</label>
                     <input type="range" id="uno-setting-scale" min="0.6" max="1.5" step="0.1" value="0.8" style="width:100%; accent-color:#8b5cf6;" oninput="updateUnoScale(this.value)">
                 </div>
-                <button class="btn-sm" style="background:#475569; color:white;" onclick="closeUnoSettings()">關閉</button>
+                <div style="display:flex; justify-content:center; gap:10px; margin-top:15px;">
+                    <button class="btn-sm" style="background:#475569; color:white;" onclick="closeUnoSettings()">關閉</button>
+                    <button id="uno-btn-open-kick" class="btn-sm btn-red hidden" onclick="openUnoKickModal()">踢出玩家</button>
+                </div>
+            </div>
+        </div>
+        <div id="uno-kick-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <h3 style="color:#ef4444;">👞 踢出玩家</h3>
+                <div id="uno-kick-list" style="max-height:200px; overflow-y:auto; margin-bottom:15px; text-align:left; color:white;"></div>
+                <button class="btn-sm" style="background:#475569; color:white;" onclick="closeUnoKickModal()">關閉回到遊戲</button>
             </div>
         </div>
         <div id="uno-draw-modal" class="modal-overlay hidden">
@@ -959,6 +976,12 @@
     let isAnimating = false;
     let processingAction = false; 
     let chatInitTimestamp = Date.now();
+
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+        deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('deviceId', deviceId);
+    }
 
     // UNO 遊戲狀態
     let unoSelectedIndices = [];
@@ -1322,6 +1345,7 @@
             roomData = {
                 ...roomData,
                 type: 'uno',
+                hostDeviceId: deviceId,
                 gameState: 'waiting',
                 settings: { chain: !!chain, stack: !!stack },
                 initialHandSize,
@@ -1385,6 +1409,13 @@
             if (isUnoGame) {
                 update(userRef, { name: myName, online: true });
                 onDisconnect(userRef).update({ online: false });
+                
+                get(ref(db, `ongame_room/${id}`)).then(roomSnap => {
+                    const rData = roomSnap.val();
+                    if(rData && rData.hostDeviceId === deviceId) {
+                        update(ref(db, `ongame_room/${id}`), { hostUid: currentUserKey, hostName: myName });
+                    }
+                });
             } else if (isLiarGame) {
                 update(userRef, { name: myName, status: 'online' });
                 onDisconnect(userRef).update({ status: 'offline' });
@@ -1462,6 +1493,7 @@
         document.getElementById('uno-room-name').innerText = data.name;
         document.getElementById('uno-rules-display').innerText = `連出:${(data.settings&&data.settings.chain)?'ON':'OFF'} | 疊加:${(data.settings&&data.settings.stack)?'ON':'OFF'}`;
 
+        const isHost = (data.hostUid === currentUserKey) || (data.hostDeviceId === deviceId);
         const users = Object.keys(data.users || {});
         const order = data.playerOrder || users;
         const currentTurnUser = order[data.turnIndex];
@@ -1485,9 +1517,17 @@
         }
 
         const statusEl = document.getElementById('uno-turn-status');
-        if (data.gameState === 'waiting') {
+        const myUserData = data.users ? data.users[currentUserKey] : null;
+
+        if (!myUserData && data.gameState === 'playing') {
+            statusEl.innerText = "你已被踢出，目前為旁觀者 👀";
+            statusEl.style.color = "#ef4444";
+            document.getElementById('uno-btn-play').classList.add('hidden');
+            document.getElementById('uno-btn-pass').classList.add('hidden');
+            document.getElementById('uno-btn-start').classList.add('hidden');
+        } else if (data.gameState === 'waiting') {
             statusEl.innerText = `等待中 (${users.length}人)`;
-            const isHost = (users.length > 0 && users[0] === currentUserKey);
+            statusEl.style.color = "#cbd5e1";
             document.getElementById('uno-btn-start').classList.toggle('hidden', !(isHost && users.length >= 2));
             document.getElementById('uno-btn-play').classList.add('hidden');
             document.getElementById('uno-btn-pass').classList.add('hidden');
@@ -1543,11 +1583,17 @@
         oppContainer.innerHTML = "";
         order.forEach((uid, idx) => {
             if (uid === currentUserKey) return;
-            const u = data.users[uid];
+            const u = data.users ? data.users[uid] : null;
+            if (!u) return;
             const handCount = (data.hands && data.hands[uid]) ? data.hands[uid].length : 0;
             const isActive = (data.gameState === 'playing' && idx === data.turnIndex);
             const isOffline = !u.online;
             const isFinished = (data.finishedPlayers || []).includes(uid);
+            
+            let kickBtnHtml = '';
+            if (isHost && data.gameState === 'waiting') {
+                kickBtnHtml = `<br><button class="btn-sm btn-red" style="margin-top:4px; padding:2px 6px; font-size:0.7rem;" onclick="kickUnoPlayer('${uid}')">踢出</button>`;
+            }
             
             const div = document.createElement('div');
             div.className = `uno-opponent-card ${isActive ? 'active' : ''}`;
@@ -1555,10 +1601,10 @@
             if (isFinished) {
                 let rankIdx = data.finishedPlayers.indexOf(uid);
                 let badge = rankIdx === 0 ? '🥇' : rankIdx === 1 ? '🥈' : rankIdx === 2 ? '🥉' : `${rankIdx + 1}.`;
-                div.innerHTML = `<div class="opp-name">${isOffline ? u.name + ' (離線)' : u.name}</div><div class="opp-count">${badge}</div><small style="font-size:0.6rem; color:#facc15;">完成</small>`;
+                div.innerHTML = `<div class="opp-name">${isOffline ? u.name + ' (離線)' : u.name}${kickBtnHtml}</div><div class="opp-count">${badge}</div><small style="font-size:0.6rem; color:#facc15;">完成</small>`;
                 div.style.opacity = '0.6';
             } else {
-                div.innerHTML = `<div class="opp-name">${isOffline ? u.name + ' (離線)' : u.name}</div><div class="opp-count">${handCount}</div><small style="font-size:0.6rem; color:#94a3b8;">cards</small>`;
+                div.innerHTML = `<div class="opp-name">${isOffline ? u.name + ' (離線)' : u.name}${kickBtnHtml}</div><div class="opp-count">${handCount}</div><small style="font-size:0.6rem; color:#94a3b8;">cards</small>`;
             }
             oppContainer.appendChild(div);
         });
@@ -2006,9 +2052,105 @@
 
     window.openUnoSettings = () => {
         document.getElementById('uno-setting-nickname').value = myName;
+        
+        const data = roomDataCache;
+        const isHost = (data.hostUid === currentUserKey) || (data.hostDeviceId === deviceId);
+        
+        if (isHost) {
+            document.getElementById('uno-host-settings').classList.remove('hidden');
+            document.getElementById('uno-btn-open-kick').classList.remove('hidden');
+            if (data.settings) {
+                document.getElementById('uno-setting-chain').checked = !!data.settings.chain;
+                document.getElementById('uno-setting-stack').checked = !!data.settings.stack;
+            }
+        } else {
+            document.getElementById('uno-host-settings').classList.add('hidden');
+            document.getElementById('uno-btn-open-kick').classList.add('hidden');
+        }
+        
         document.getElementById('uno-settings-modal').classList.remove('hidden');
     };
+    
     window.closeUnoSettings = () => document.getElementById('uno-settings-modal').classList.add('hidden');
+    
+    window.updateUnoRules = async () => {
+        if (!roomDataCache) return;
+        const chain = document.getElementById('uno-setting-chain').checked;
+        const stack = document.getElementById('uno-setting-stack').checked;
+        await update(ref(db, `ongame_room/${currentRoomId}/settings`), { chain, stack });
+    };
+
+    window.openUnoKickModal = () => {
+        document.getElementById('uno-settings-modal').classList.add('hidden');
+        const list = document.getElementById('uno-kick-list');
+        list.innerHTML = "";
+        const data = roomDataCache;
+        const order = data.playerOrder || Object.keys(data.users || {});
+        
+        let count = 0;
+        order.forEach(uid => {
+            if (uid === currentUserKey) return;
+            const u = data.users ? data.users[uid] : null;
+            if (!u) return;
+            count++;
+            const div = document.createElement('div');
+            div.style.display = 'flex';
+            div.style.justifyContent = 'space-between';
+            div.style.alignItems = 'center';
+            div.style.margin = '5px 0';
+            div.style.padding = '8px';
+            div.style.background = 'rgba(255,255,255,0.05)';
+            div.style.borderRadius = '8px';
+            div.innerHTML = `<span>${u.name}</span> <button class="btn-sm btn-red" onclick="kickUnoPlayer('${uid}')">踢出</button>`;
+            list.appendChild(div);
+        });
+        if (count === 0) list.innerHTML = "<div style='text-align:center; color:#94a3b8;'>沒有其他玩家</div>";
+        
+        document.getElementById('uno-kick-modal').classList.remove('hidden');
+    };
+
+    window.closeUnoKickModal = () => {
+        document.getElementById('uno-kick-modal').classList.add('hidden');
+    };
+
+    window.kickUnoPlayer = async (uid) => {
+        if(!confirm("確定要踢出此玩家？")) return;
+        const data = roomDataCache;
+        const updates = {};
+        
+        updates[`users/${uid}`] = null;
+        updates[`hands/${uid}`] = null;
+        
+        if (data.playerOrder) {
+            let newOrder = [...data.playerOrder];
+            const targetIdx = newOrder.indexOf(uid);
+            if (targetIdx > -1) {
+                newOrder.splice(targetIdx, 1);
+                updates[`playerOrder`] = newOrder;
+                
+                if (data.gameState === 'playing') {
+                    let newTurnIndex = data.turnIndex;
+                    if (targetIdx < data.turnIndex) {
+                        newTurnIndex--;
+                    } else if (targetIdx === data.turnIndex) {
+                        if (newTurnIndex >= newOrder.length) newTurnIndex = 0;
+                    }
+                    if (newTurnIndex >= newOrder.length) newTurnIndex = 0;
+                    updates[`turnIndex`] = newTurnIndex;
+                    
+                    if (data.finishedPlayers) {
+                        updates[`finishedPlayers`] = data.finishedPlayers.filter(id => id !== uid);
+                    }
+                }
+            }
+        }
+        await update(ref(db, `ongame_room/${currentRoomId}`), updates);
+        
+        if (document.getElementById('uno-kick-modal') && !document.getElementById('uno-kick-modal').classList.contains('hidden')) {
+            openUnoKickModal();
+        }
+    };
+
     window.updateUnoNickname = async () => {
         const newName = (document.getElementById('uno-setting-nickname').value || '').trim();
         if (!newName) return alert("暱稱不能為空！");
