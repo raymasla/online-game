@@ -1201,6 +1201,7 @@
 
     let pendingRoomId = null;
     let pendingRoomData = null;
+    let isCreatingUnoRoom = false;
 
     window.handleLiarJoin = (id, roomData) => {
         pendingRoomId = id;
@@ -1342,10 +1343,10 @@
             const chain = document.getElementById('uno-rule-chain') && document.getElementById('uno-rule-chain').checked;
             const stack = document.getElementById('uno-rule-stack') && document.getElementById('uno-rule-stack').checked;
             const initialHandSize = parseInt((document.getElementById('uno-initialHandSize') && document.getElementById('uno-initialHandSize').value) || 7) || 7;
+            isCreatingUnoRoom = true;
             roomData = {
                 ...roomData,
                 type: 'uno',
-                hostDeviceId: deviceId,
                 gameState: 'waiting',
                 settings: { chain: !!chain, stack: !!stack },
                 initialHandSize,
@@ -1410,12 +1411,10 @@
                 update(userRef, { name: myName, online: true });
                 onDisconnect(userRef).update({ online: false });
                 
-                get(ref(db, `ongame_room/${id}`)).then(roomSnap => {
-                    const rData = roomSnap.val();
-                    if(rData && rData.hostDeviceId === deviceId) {
-                        update(ref(db, `ongame_room/${id}`), { hostUid: currentUserKey, hostName: myName });
-                    }
-                });
+                if (isCreatingUnoRoom) {
+                    isCreatingUnoRoom = false;
+                    update(ref(db, `ongame_room/${id}`), { hostUid: currentUserKey, hostName: myName });
+                }
             } else if (isLiarGame) {
                 update(userRef, { name: myName, status: 'online' });
                 onDisconnect(userRef).update({ status: 'offline' });
@@ -1493,7 +1492,7 @@
         document.getElementById('uno-room-name').innerText = data.name;
         document.getElementById('uno-rules-display').innerText = `連出:${(data.settings&&data.settings.chain)?'ON':'OFF'} | 疊加:${(data.settings&&data.settings.stack)?'ON':'OFF'}`;
 
-        const isHost = (data.hostUid === currentUserKey) || (data.hostDeviceId === deviceId);
+        const isHost = (data.hostUid === currentUserKey);
         const users = Object.keys(data.users || {});
         const order = data.playerOrder || users;
         const currentTurnUser = order[data.turnIndex];
@@ -2054,7 +2053,7 @@
         document.getElementById('uno-setting-nickname').value = myName;
         
         const data = roomDataCache;
-        const isHost = (data.hostUid === currentUserKey) || (data.hostDeviceId === deviceId);
+        const isHost = (data.hostUid === currentUserKey);
         
         if (isHost) {
             document.getElementById('uno-host-settings').classList.remove('hidden');
