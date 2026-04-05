@@ -706,7 +706,7 @@
     前往 Yahtzee🎲</button>
     <button class="menu-btn" style="background: linear-gradient(135deg, #0E452F 0%, #1F7D5C 100%);" onclick="window.open('https://raymasla.github.io/Html-21point-blackjack/', '_blank')">
     前往 21點♠️♣️</button>
-    <button class="menu-btn" style="background: linear-gradient(to right, #0000FF 0%, #FF0000 100%); color: white; border: none; padding: 10px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onclick="window.open('https://reurl.cc/vkmlg1', '_blank')">
+    <button class="menu-btn" style="background: linear-gradient(to right, #0000FF 0%, #FF0000 100%); color: white; border: none; padding: 10px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onclick="window.open('https://youtube.com/@game-aray?sub_confirmation=1', '_blank')">
     😁訂閱阿叡Game😎
 </button>
 </div>
@@ -1600,10 +1600,10 @@
             if (isFinished) {
                 let rankIdx = data.finishedPlayers.indexOf(uid);
                 let badge = rankIdx === 0 ? '🥇' : rankIdx === 1 ? '🥈' : rankIdx === 2 ? '🥉' : `${rankIdx + 1}.`;
-                div.innerHTML = `<div class="opp-name">${isOffline ? u.name + ' (離線)' : u.name}${kickBtnHtml}</div><div class="opp-count">${badge}</div><small style="font-size:0.6rem; color:#facc15;">完成</small>`;
+                div.innerHTML = `<div class="opp-name">${isOffline ? u.name + ' 💤' : u.name}${kickBtnHtml}</div><div class="opp-count">${badge}</div><small style="font-size:0.6rem; color:#facc15;">完成</small>`;
                 div.style.opacity = '0.6';
             } else {
-                div.innerHTML = `<div class="opp-name">${isOffline ? u.name + ' (離線)' : u.name}${kickBtnHtml}</div><div class="opp-count">${handCount}</div><small style="font-size:0.6rem; color:#94a3b8;">cards</small>`;
+                div.innerHTML = `<div class="opp-name">${isOffline ? u.name + ' 💤' : u.name}${kickBtnHtml}</div><div class="opp-count">${handCount}</div><small style="font-size:0.6rem; color:#94a3b8;">cards</small>`;
             }
             oppContainer.appendChild(div);
         });
@@ -2406,7 +2406,7 @@
 
             div.innerHTML = `
                 <div style="font-size:0.8em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:white;">
-                    ${safeName} ${isOffline ? '<span style="font-size:0.8em; color:#94a3b8;">(離線)</span>' : ''}
+                    ${safeName} ${isOffline ? '<span style="font-size:0.8em; color:#94a3b8;">💤</span>' : ''}
                 </div>
                 <div style="font-size:1.5em; margin:5px 0;">🃏 ${handSize}</div>
                 <div class="cylinder-display">${bulletsHTML}</div>
