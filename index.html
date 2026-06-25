@@ -535,7 +535,7 @@
         .uno-table-area {
             flex: 1; position: relative; display: flex; justify-content: center; align-items: center;
             gap: 30px; perspective: 800px; min-height: 220px; 
-            padding: 50px 10px 30px 10px; 
+            padding: 70px 10px 10px 10px; 
             box-sizing: border-box;
         }
         .uno-opponents-bar {
@@ -578,7 +578,7 @@
         }
         .uno-bottom-section {
             background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-            padding: 10px 0 15px 0; border-radius: 0 0 12px 12px;
+            padding: 20px 0 15px 0; border-radius: 0 0 12px 12px;
         }
         .uno-controls { display: flex; gap: 15px; justify-content: center; margin-bottom: 5px; flex-wrap: wrap; }
         .uno-controls .btn-game { min-width: 90px; padding: 10px 20px; font-size: 1em; }
@@ -663,20 +663,13 @@
             box-sizing: border-box;
         }
 
-        /* 滾動條美化 */
+        /* 隱藏滾動條但保留滑動功能 */
         .uno-opponents-bar::-webkit-scrollbar, .opponents-row::-webkit-scrollbar {
-            height: 8px;
+            display: none;
         }
-        .uno-opponents-bar::-webkit-scrollbar-track, .opponents-row::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 4px;
-        }
-        .uno-opponents-bar::-webkit-scrollbar-thumb, .opponents-row::-webkit-scrollbar-thumb {
-            background: #6366f1;
-            border-radius: 4px;
-        }
-        .uno-opponents-bar::-webkit-scrollbar-thumb:hover, .opponents-row::-webkit-scrollbar-thumb:hover {
-            background: #a855f7;
+        .uno-opponents-bar, .opponents-row {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
 
     </style>
